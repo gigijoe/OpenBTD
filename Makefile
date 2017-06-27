@@ -63,7 +63,7 @@ BIN=$(CP) -O ihex
 # HSE_VALUE sets the value of the HSE clock, 8MHz in this case 
 
 # PLEASE CHOOSE THE CORRECT MCU FOR YOUR APPLICATION
-MCU_FAMILY = STM32F10X_MD_VL
+MCU_FAMILY = STM32F10X_MD
 HSE_VALUE = 8000000
 
 # Default to selecting the STD_PERIPH_DRIVER
@@ -81,11 +81,11 @@ STM32_INCLUDES = -I$(CMSIS)/DeviceSupport/ST/STM32F10x/ \
 OPTIMIZE       = -Os
 
 CFLAGS	= $(MCFLAGS)  $(OPTIMIZE)  $(DEFS) -I. -I./ $(STM32_INCLUDES)
-CFLAGS += -lm -lc -lnosys -Wl,-Map=$(PROJ_NAME).map -Wl,-T,stm32_flash.ld
+CFLAGS += -lc -lnosys -specs=nosys.specs -Wl,-Map=$(PROJ_NAME).map -Wl,-T,stm32_flash.ld
 AFLAGS	= $(MCFLAGS) 
 
 SRCS += stm32f10x_it.c 
-SRCS += ./Device/startup_stm32f10x_md_vl.s
+SRCS += ./Device/startup_stm32f10x_md.s
 
 OBJDIR = .
 OBJ = $(SRC:%.c=$(OBJDIR)/%.o) 
@@ -105,7 +105,7 @@ $(PROJ_NAME).elf: $(SRCS)
 	@echo Please check $(LDSCRIPT_INC) to ensure that the linker script is correct.
 	@echo
 	@echo $(value STARTUP)
-	$(CC) $(CFLAGS) $^ -o $@ -L$(STD_PERIPH_LIB) -lstm32f1 -L$(LDSCRIPT_INC)
+	$(CC) $(CFLAGS) $^ -o $@ -L$(STD_PERIPH_LIB) -lstm32f1 -lm -L$(LDSCRIPT_INC)
 	$(OBJCOPY) -O ihex $(PROJ_NAME).elf $(PROJ_NAME).hex
 	$(OBJCOPY) -O binary $(PROJ_NAME).elf $(PROJ_NAME).bin
 	$(OBJDUMP) -St $(PROJ_NAME).elf >$(PROJ_NAME).lst

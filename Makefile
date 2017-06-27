@@ -1,5 +1,5 @@
 # Please add all the appropriate src files, (*.o) targets
-SRCS= main.c system_stm32f10x.c
+SRCS= delay.c main.c system_stm32f10x.c
 
 # all the files will be generated with this name (main.elf, main.bin, main.hex, etc)
 PROJ_NAME=main

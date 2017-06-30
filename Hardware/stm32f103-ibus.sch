@@ -1,0 +1,278 @@
+EESchema Schematic File Version 2
+LIBS:power
+LIBS:device
+LIBS:transistors
+LIBS:conn
+LIBS:linear
+LIBS:regul
+LIBS:74xx
+LIBS:cmos4000
+LIBS:adc-dac
+LIBS:memory
+LIBS:xilinx
+LIBS:special
+LIBS:microcontrollers
+LIBS:dsp
+LIBS:microchip
+LIBS:analog_switches
+LIBS:motorola
+LIBS:texas
+LIBS:intel
+LIBS:audio
+LIBS:interface
+LIBS:digital-audio
+LIBS:philips
+LIBS:display
+LIBS:cypress
+LIBS:siliconi
+LIBS:opto
+LIBS:atmel
+LIBS:contrib
+LIBS:valves
+LIBS:stm32f103c8t6-module-china
+LIBS:stm32f103-ibus-cache
+EELAYER 25 0
+EELAYER END
+$Descr A4 11693 8268
+encoding utf-8
+Sheet 1 1
+Title ""
+Date ""
+Rev ""
+Comp ""
+Comment1 ""
+Comment2 ""
+Comment3 ""
+Comment4 ""
+$EndDescr
+$Comp
+L stm32f103c8t6-module-china U?
+U 1 1 595243E1
+P 5450 3450
+F 0 "U?" H 5450 4800 60  0000 C CNN
+F 1 "stm32f103c8t6-module-china" V 5450 3450 60  0000 C CNN
+F 2 "myelin-kicad:stm32f103c8t6-module-china" H 5450 1750 60  0001 C CNN
+F 3 "" H 5050 3700 60  0000 C CNN
+	1    5450 3450
+	1    0    0    -1  
+$EndComp
+Text Label 800  5300 0    60   ~ 0
+iBus
+$Comp
+L R R?
+U 1 1 595248CF
+P 1350 5950
+F 0 "R?" V 1430 5950 40  0000 C CNN
+F 1 "2K" V 1357 5951 40  0000 C CNN
+F 2 "" V 1280 5950 30  0000 C CNN
+F 3 "" H 1350 5950 30  0000 C CNN
+	1    1350 5950
+	0    1    1    0   
+$EndComp
+$Comp
+L PC817 IC?
+U 1 1 59524955
+P 2150 6050
+F 0 "IC?" H 1940 6240 40  0000 C CNN
+F 1 "PC817" H 2300 5860 40  0000 C CNN
+F 2 "DIP4" H 1950 5870 30  0000 C CIN
+F 3 "" H 2150 6050 60  0000 C CNN
+	1    2150 6050
+	1    0    0    -1  
+$EndComp
+$Comp
+L PC817 IC?
+U 1 1 59524976
+P 2150 6750
+F 0 "IC?" H 1940 6940 40  0000 C CNN
+F 1 "PC817" H 2300 6560 40  0000 C CNN
+F 2 "DIP4" H 1950 6570 30  0000 C CIN
+F 3 "" H 2150 6750 60  0000 C CNN
+	1    2150 6750
+	-1   0    0    -1  
+$EndComp
+$Comp
+L R R?
+U 1 1 595249B7
+P 2950 6150
+F 0 "R?" V 3030 6150 40  0000 C CNN
+F 1 "470" V 2957 6151 40  0000 C CNN
+F 2 "" V 2880 6150 30  0000 C CNN
+F 3 "" H 2950 6150 30  0000 C CNN
+	1    2950 6150
+	0    1    1    0   
+$EndComp
+Text GLabel 3500 6150 2    60   Input ~ 0
+LIN_RX
+$Comp
+L GND #PWR?
+U 1 1 59524A90
+P 3350 6300
+F 0 "#PWR?" H 3350 6300 30  0001 C CNN
+F 1 "GND" H 3350 6230 30  0001 C CNN
+F 2 "" H 3350 6300 60  0000 C CNN
+F 3 "" H 3350 6300 60  0000 C CNN
+	1    3350 6300
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR?
+U 1 1 59524ADF
+P 1800 6300
+F 0 "#PWR?" H 1800 6300 30  0001 C CNN
+F 1 "GND" H 1800 6230 30  0001 C CNN
+F 2 "" H 1800 6300 60  0000 C CNN
+F 3 "" H 1800 6300 60  0000 C CNN
+	1    1800 6300
+	1    0    0    -1  
+$EndComp
+$Comp
+L +3.3V #PWR?
+U 1 1 59524B4F
+P 2650 5800
+F 0 "#PWR?" H 2650 5760 30  0001 C CNN
+F 1 "+3.3V" H 2650 5910 30  0000 C CNN
+F 2 "" H 2650 5800 60  0000 C CNN
+F 3 "" H 2650 5800 60  0000 C CNN
+	1    2650 5800
+	1    0    0    -1  
+$EndComp
+$Comp
+L S8050 Q?
+U 1 1 59524B85
+P 2950 6850
+F 0 "Q?" H 2950 6701 40  0000 R CNN
+F 1 "S8050" H 2950 7000 40  0000 R CNN
+F 2 "TO92" H 2850 6952 29  0000 C CNN
+F 3 "" H 2950 6850 60  0000 C CNN
+	1    2950 6850
+	-1   0    0    -1  
+$EndComp
+$Comp
+L R R?
+U 1 1 59524C83
+P 3400 6650
+F 0 "R?" V 3480 6650 40  0000 C CNN
+F 1 "470" V 3407 6651 40  0000 C CNN
+F 2 "" V 3330 6650 30  0000 C CNN
+F 3 "" H 3400 6650 30  0000 C CNN
+	1    3400 6650
+	0    1    1    0   
+$EndComp
+$Comp
+L R R?
+U 1 1 59524D2E
+P 3400 7150
+F 0 "R?" V 3480 7150 40  0000 C CNN
+F 1 "10K" V 3407 7151 40  0000 C CNN
+F 2 "" V 3330 7150 30  0000 C CNN
+F 3 "" H 3400 7150 30  0000 C CNN
+	1    3400 7150
+	0    1    1    0   
+$EndComp
+$Comp
+L R R?
+U 1 1 59524E64
+P 3800 6900
+F 0 "R?" V 3880 6900 40  0000 C CNN
+F 1 "1K" H 3807 6901 40  0000 C CNN
+F 2 "" V 3730 6900 30  0000 C CNN
+F 3 "" H 3800 6900 30  0000 C CNN
+	1    3800 6900
+	1    0    0    -1  
+$EndComp
+$Comp
+L +3.3V #PWR?
+U 1 1 59524F3B
+P 3800 6500
+F 0 "#PWR?" H 3800 6460 30  0001 C CNN
+F 1 "+3.3V" H 3800 6610 30  0000 C CNN
+F 2 "" H 3800 6500 60  0000 C CNN
+F 3 "" H 3800 6500 60  0000 C CNN
+	1    3800 6500
+	1    0    0    -1  
+$EndComp
+Text GLabel 3950 7150 2    60   Input ~ 0
+LIN_TX
+Wire Bus Line
+	800  5300 800  7250
+Wire Bus Line
+	800  6900 800  7350
+Wire Wire Line
+	3200 6150 3500 6150
+Wire Wire Line
+	3350 6300 3350 6150
+Connection ~ 3350 6150
+Wire Wire Line
+	2500 6150 2700 6150
+Wire Wire Line
+	800  5950 1100 5950
+Wire Wire Line
+	1600 5950 1800 5950
+Wire Wire Line
+	1800 6150 1800 6300
+Wire Wire Line
+	2500 5950 2650 5950
+Wire Wire Line
+	2650 5950 2650 5800
+Wire Wire Line
+	800  6650 1800 6650
+Wire Wire Line
+	3150 6850 3150 7150
+Wire Wire Line
+	2500 6650 3150 6650
+Connection ~ 2850 6650
+Wire Wire Line
+	3650 6650 3800 6650
+Wire Wire Line
+	3650 7150 3950 7150
+Connection ~ 3800 7150
+Wire Wire Line
+	3800 6650 3800 6500
+$Comp
+L GND #PWR?
+U 1 1 59524FF1
+P 2850 7200
+F 0 "#PWR?" H 2850 7200 30  0001 C CNN
+F 1 "GND" H 2850 7130 30  0001 C CNN
+F 2 "" H 2850 7200 60  0000 C CNN
+F 3 "" H 2850 7200 60  0000 C CNN
+	1    2850 7200
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR?
+U 1 1 59525005
+P 1800 7000
+F 0 "#PWR?" H 1800 7000 30  0001 C CNN
+F 1 "GND" H 1800 6930 30  0001 C CNN
+F 2 "" H 1800 7000 60  0000 C CNN
+F 3 "" H 1800 7000 60  0000 C CNN
+	1    1800 7000
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	2850 7050 2850 7200
+Wire Wire Line
+	2500 6850 2500 7050
+Wire Wire Line
+	2500 7050 2850 7050
+Wire Wire Line
+	1800 6850 1800 7000
+Text GLabel 6650 2800 2    60   Input ~ 0
+LIN_TX
+Text GLabel 6650 2650 2    60   Input ~ 0
+LIN_RX
+Wire Wire Line
+	6500 2650 6650 2650
+Wire Wire Line
+	6500 2800 6650 2800
+Text GLabel 6650 4000 2    60   Input ~ 0
+USART2_TX
+Text GLabel 6650 3850 2    60   Input ~ 0
+USART2_RX
+Wire Wire Line
+	6500 3850 6650 3850
+Wire Wire Line
+	6500 4000 6650 4000
+$EndSCHEMATC

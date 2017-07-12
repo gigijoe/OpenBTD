@@ -32,4 +32,6 @@ char *Usart3_Gets(void);
 int Usart3_Read(uint8_t *data, uint8_t len);
 int Usart3_Poll(void);
 
+extern volatile uint32_t usart3_idle_tick;
+
 #endif

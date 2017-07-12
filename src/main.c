@@ -27,88 +27,22 @@
 #include "bool.h"
 #include "delay.h"
 #include "usart.h"
+#include "adc.h"
 
 /*
 *
 */
 
-static uint32_t tim4Tick = 0;
-
-void Tim4_Init(void)
+static char *BatteryVoltage(void)
 {
-  NVIC_InitTypeDef NVIC_InitStructure;
-  
-  /* NVIC_PriorityGroup */
-  NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
-  NVIC_InitStructure.NVIC_IRQChannel = TIM4_IRQn;
-  NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
-  NVIC_InitStructure.NVIC_IRQChannelSubPriority = 3;
-  NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-  NVIC_Init(&NVIC_InitStructure);
-
-  TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
-  //基础设置，时基和比较输出设置，由于这里只需定时，所以不用OC比较输出
-  RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4,ENABLE);
-  
-  TIM_DeInit(TIM4);
-
-  TIM_TimeBaseStructure.TIM_Period = 1000;//装载值
-  //prescaler is 72, that is 72000000/72/1000 = 1000Hz;
-  TIM_TimeBaseStructure.TIM_Prescaler = 71;//分频系数
-  //set clock division 
-  TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1; //or TIM_CKD_DIV2 or TIM_CKD_DIV4
-  //count up
-  TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-  
-  TIM_TimeBaseInit(TIM4, &TIM_TimeBaseStructure);
-  //clear the TIM4 overflow interrupt flag
-  TIM_ClearFlag(TIM4, TIM_FLAG_Update);
-  //TIM4 overflow interrupt enable
-  TIM_ITConfig(TIM4, TIM_IT_Update, ENABLE);
-  //enable TIM4
-  TIM_Cmd(TIM4, DISABLE);
-}
-
-void Tim4_Enable(void)
-{
-  TIM_Cmd(TIM4, ENABLE);
-}
-
-static uint32_t tim4Tick_1ms = 0;
-
-void Tim4_1ms(void)
-{
-}
-
-static uint32_t tim4Tick_10ms = 0;
-
-void Tim4_10ms(void)
-{
-}
-
-static uint32_t tim4Tick_50ms = 0;
-
-void Tim4_50ms(void)
-{  
-}
-
-static uint32_t tim4Tick_100ms = 0;
-
-void Tim4_100ms(void)
-{
-}
-
-static uint32_t tim4Tick_200ms = 0;
-
-void Tim4_200ms(void)
-{
-  static bool ledSwitch = true;
-  if(ledSwitch)
-    GPIO_ResetBits(GPIOB, GPIO_Pin_12);  // turn off all led
-  else
-    GPIO_SetBits(GPIOB, GPIO_Pin_12);  // turn on all led
-
-  ledSwitch = !ledSwitch;
+  static char vs[5];
+  float v = (float) ADC_ConvertedValue / 4096 * 3.3 * (10.0 / 2.15);
+  snprintf(vs, 5, "%f", v);
+/*
+  Usart2_Puts(vs);
+  Usart2_Puts("\r\n");
+*/
+  return vs;
 }
 
 /*
@@ -156,6 +90,24 @@ static char *hextoa(uint8_t hex)
   return a;
 }
 
+static char *hextodec(uint8_t hex)
+{
+  static char a[4];
+  memset(a, 0x20, 4);
+  if(hex >= 100) {
+    a[0] = hex / 100 + 0x30;
+    a[1] = (hex % 100) / 10 + 0x30;
+    a[2] = (hex % 10) + 0x30;
+    a[3] = '\0';
+  } else if(hex >= 10) {
+    a[0] = hex / 10 + 0x30;
+    a[1] = hex % 10 + 0x30;
+  } else
+    a[0] = hex + 0x30;
+  a[3] = '\0';
+  return a;
+}
+
 static uint8_t atohex8(char *s)
 {
   uint8_t value = 0;
@@ -184,8 +136,7 @@ static uint8_t atohex8(char *s)
 static char *ibus_device_name(uint8_t id) 
 {
   switch(id) {
-    case 0xff:
-    case 0x00: return "Broadcast";
+    case 0x00: return "GM Broadcast";
     case 0x08: return "SHD Sunroof Control";
     case 0x18: return "CDC CD-Player";
     case 0x24: return "HKM Tailgate lift";
@@ -194,7 +145,7 @@ static char *ibus_device_name(uint8_t id)
     case 0x3b: return "NAV Navigation/Videomodule";
     case 0x3f: return "DIA Diagnostic";
     case 0x40: return "FBZV Remote control central locking";
-    case 0x43: return "MenuScreen";
+    case 0x43: return "GTF Graphics driver for rear screen (in navigation system)";
     case 0x44: return "EWS Electronic immobiliser";
     case 0x46: return "CID Central information display";
     case 0x50: return "MFL Multi Functional Steering Wheel Buttons";
@@ -207,7 +158,7 @@ static char *ibus_device_name(uint8_t id)
     case 0x72: return "SM0 Seat memory";
     case 0x73: return "SDRS Sirius Radio";
     case 0x76: return "CDCD CD changer, DIN size";
-    case 0x7f: return "Navigation (Europe)";
+    case 0x7f: return "NAVE Navigation (Europe)";
     case 0x80: return "IKE Instrument Control Electronics";
     case 0x9b: return "MM1 Mirror memory";
     case 0x9c: return "MM2 Mirror memory";
@@ -215,7 +166,7 @@ static char *ibus_device_name(uint8_t id)
     case 0xa4: return "ABM Air bag module";
     case 0xac: return "EHC Electronic height control";
     case 0xb0: return "SES Speed recognition system";
-    case 0xbb: return "Navigation (Japan)";
+    case 0xbb: return "NAVJ Navigation (Japan)";
     case 0xbf: return "GLO Global, broadcast address";
     case 0xc0: return "MID Multi-Information Display Buttons";
     case 0xc8: return "TEL Telephone";
@@ -223,10 +174,103 @@ static char *ibus_device_name(uint8_t id)
     case 0xe0: return "IRIS Integrated radio information system";
     case 0xe7: return "ANZV OBC TextBar";
     case 0xed: return "TV Television";
-    case 0xf0: return "BMB Board Monitor Buttons";
+    case 0xf0: return "BMBT Board Monitor Buttons";
+    case 0xff: return "LOC local";
     default: return "Unknown";
   }
 }
+#if 0
+static char *ibus_device_alias(uint8_t id) 
+{
+  switch(id) {
+    case 0x00: return "GM";
+    case 0x08: return "SHD";
+    case 0x18: return "CDC";
+    case 0x24: return "HKM";
+    case 0x28: return "FUH";
+    case 0x30: return "CCM";
+    case 0x3b: return "NAV";
+    case 0x3f: return "DIA";
+    case 0x40: return "FBZV";
+    case 0x43: return "GTF";
+    case 0x44: return "EWS";
+    case 0x46: return "CID";
+    case 0x50: return "MFL";
+    case 0x51: return "MM0";
+    case 0x5b: return "IHK";
+    case 0x60: return "PDC";
+    case 0x68: return "RAD";
+    case 0x6A: return "DSP";
+    case 0x70: return "RDC";
+    case 0x72: return "SM0";
+    case 0x73: return "SDRS";
+    case 0x76: return "CDCD";
+    case 0x7f: return "NAVE";
+    case 0x80: return "IKE";
+    case 0x9b: return "MM1";
+    case 0x9c: return "MM2";
+    case 0xa0: return "FMID";
+    case 0xa4: return "ABM";
+    case 0xac: return "EHC";
+    case 0xb0: return "SES";
+    case 0xbb: return "NAVJ";
+    case 0xbf: return "GLO";
+    case 0xc0: return "MID";
+    case 0xc8: return "TEL";
+    case 0xd0: return "LCM";
+    case 0xe0: return "IRIS";
+    case 0xe7: return "ANZV";
+    case 0xed: return "TV";
+    case 0xf0: return "BMBT";
+    case 0xff: return "LOC";
+    default: return "Unknown";
+  }
+}
+#endif
+
+#define GM 0x00 /*Body module*/
+#define SHD 0x08 /*Sunroof Control*/
+#define CDC 0x18 /*CD Changer*/
+#define FUH 0x28 /*Radio controlled clock*/
+#define CCM 0x30 /*Check control module*/
+#define GT 0x3B /*Graphics driver (in navigation system)*/
+#define DIA 0x3F /*Diagnostic*/
+#define FBZV 0x40 /*Remote control central locking*/
+#define GTF 0x43 /*Graphics driver for rear screen (in navigation system)*/
+#define EWS 0x44 /*Immobiliser*/
+#define CID 0x46 /*Central information display (flip-up LCD screen)*/
+#define MFL 0x50 /*Multi function steering wheel*/
+#define MM0 0x51 /*Mirror memory*/
+#define IHK 0x5B /*Integrated heating and air conditioning*/
+#define PDC 0x60 /*Park distance control*/
+#define ONL 0x67 /*unknown*/
+#define RAD 0x68 /*Radio*/
+#define DSP 0x6A /*Digital signal processing audio amplifier*/
+#define SM0 0x72 /*Seat memory*/
+#define SDRS 0x73 /*Sirius Radio*/
+#define CDCD 0x76 /*CD changer, DIN size.*/
+#define NAVE 0x7F /*Navigation (Europe)*/
+#define IKE 0x80 /*Instrument cluster electronics*/
+#define MM1 0x9B /*Mirror memory*/
+#define MM2 0x9C /*Mirror memory*/
+#define FMID 0xA0 /*Rear multi-info-display*/
+#define ABM 0xA4 /*Air bag module*/
+#define KAM 0xA8 /*unknown*/
+#define ASP 0xAC /*unknown*/
+#define SES 0xB0 /*Speed recognition system*/
+#define NAVJ 0xBB /*Navigation (Japan)*/
+#define GLO 0xBF /*Global, broadcast address*/
+#define MID 0xC0 /*Multi-info display*/
+#define TEL 0xC8 /*Telephone*/
+#define TCU 0xCA /*unknown (BMW Assist?)*/
+#define LCM 0xD0 /*Light control module*/
+#define GTHL 0xDA /*unknown*/
+#define IRIS 0xE0 /*Integrated radio information system*/
+#define ANZV 0xE7 /*Front display*/
+#define RLS 0xE8 /*Rain/Light Sensor*/
+#define TV 0xED /*Television*/
+#define BMBT 0xF0 /*On-board monitor operating part*/
+#define LOC 0xFF /*Local*/
 
 static uint8_t XOR_Checksum(uint8_t *buf, uint16_t len)
 {
@@ -285,8 +329,9 @@ int IBus_Help(void)
   Usart2_Puts("\r\n dest [dev id 0] [dev id 1] ... [dev id n]");
   Usart2_Puts("\r\n recv");
   Usart2_Puts("\r\n stop");
-  Usart2_Puts("\r\n send <src id> <dest id> <XX XX XX ...>");
-  Usart2_Puts("\r\n send raw <XX XX XX ...>");
+
+  //Usart2_Puts("\r\n send <src id> <dest id> <XX XX XX ...>");
+  //Usart2_Puts("\r\n send raw <XX XX XX ...>");
 
   return 0;
 }
@@ -428,6 +473,112 @@ uint8_t IBus_ValidDestination(uint8_t id)
   return 0;
 }
 
+/* SSM : System Status Monitor */
+
+typedef struct {
+  bool enable;
+  bool radioPowerOn;
+  char temperture[4];
+} Ssm;
+
+static Ssm ssm;
+
+void Ssm_Init()
+{
+  ssm.enable = false;
+  ssm.radioPowerOn = false;
+  memset(ssm.temperture, 0x20, 4);
+}
+
+void Ssm_Update()
+{
+  if(ssm.enable == false)
+    return;
+
+  uint8_t d[] = { 0x23, 0x80, 0x20, 0x58, 0x58, 0x58, 0x43, 0x20, 0x03, 0x20, 0x20, 0x20, 0x20, 0x20, 0x56, 0x20, 0x04 };
+  memcpy(&d[3], ssm.temperture, 3);
+
+  char *v = BatteryVoltage();
+  memcpy(&d[9], v, 4);
+
+  IBus_Send2(0x68, 0xe7, d, 17); /* Display water temperture on ANZV OBC TextBar */
+}
+
+void IBus_DecodeIke(uint8_t *p)
+{
+  switch(p[3]) { /* Message ID */
+    case 0x19: { /* Temperature */
+#if 0
+      if(p[2] == GLO)
+        Usart2_Printf("IKE --> GLO : Temperature, Outside %d°C, Coolant %d°C\r\n", p[4], p[5]);
+#endif
+      memcpy(ssm.temperture, hextodec(p[5]), 3);
+    } break;
+  }
+}
+
+const uint8_t BTN_NEXT_PRESSED[] = { 0x50, 0x04, 0x68, 0x3b, 0x01, 0x06 };
+const uint8_t BTN_NEXT_RELEASED[] = { 0x50, 0x04, 0x68, 0x3b, 0x21, 0x26 };
+
+const uint8_t BTN_PREV_PRESSED[] = { 0x50, 0x04, 0x68, 0x3b, 0x08, 0x0f };
+const uint8_t BTN_PREV_RELEASED[] = { 0x50, 0x04, 0x68, 0x3b, 0x28, 0x2f };
+
+const uint8_t BTN_VOLUME_UP[] = { 0x50, 0x04, 0x68, 0x32, 0x11, 0x1f };
+const uint8_t BTN_VOLUME_DOWN[] = { 0x50, 0x04, 0x68, 0x32, 0x10, 0x1e };
+
+const uint8_t BTN_RIGHT_TELEPHONE[] = { 0x50, 0x04, 0xc8, 0x3b, 0x40, 0xe7 };
+
+const uint8_t BTN_LEFT_TELEPHONE_PRESSED[] = { 0x50, 0x04, 0xc8, 0x3b, 0x80, 0x27 };
+const uint8_t BTN_LEFT_TELEPHONE_RELEASED[] = { 0x50, 0x04, 0xc8, 0x3b, 0xa0, 0x07 };
+
+void IBus_DecodeMfl(uint8_t *p)
+{  
+  if(memcmp(BTN_NEXT_PRESSED, p, 6) == 0) {
+    GPIO_ResetBits(GPIOB, GPIO_Pin_13); /* pull low */
+  } else if(memcmp(BTN_NEXT_RELEASED, p, 6) == 0) {
+    GPIO_SetBits(GPIOB, GPIO_Pin_13); /* pull high */
+
+    uint8_t d1[] = { 0x23, 0x40, 0x20, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0x31 };
+    IBus_Send2(0x68, 0xe7, d1, 14); /* Display "12345678901" on ANZV OBC TextBar */    
+  } else if(memcmp(BTN_PREV_PRESSED, p, 6) == 0) {
+    GPIO_ResetBits(GPIOB, GPIO_Pin_15); /* pull low */
+  } else if(memcmp(BTN_PREV_RELEASED, p, 6) == 0) {
+    GPIO_SetBits(GPIOB, GPIO_Pin_15); /* pull high */
+
+    uint8_t d2[] = { 0x23, 0x04, 0x20, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30 };
+    IBus_Send2(0x68, 0xe7, d2, 23); /* Display "12345678901234567890" on ANZV OBC TextBar - BC Screen (20) */    
+
+  } else if(memcmp(BTN_VOLUME_UP, p, 6) == 0) {
+
+    uint8_t d3[] = { 0x23, 0x62, 0x30, 0x35, 0x00, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36 };
+    IBus_Send2(0x68, 0x80, d3, 21); /* Display "1234567890123456" on IKE - Text Screen (20) */
+
+  } else if(memcmp(BTN_VOLUME_DOWN, p, 6) == 0) {
+
+    uint8_t d[] = { 0x21, 0x40, 0x00, 0x09, 0x05, 0x05, 0x4D, 0x50, 0x33 };
+    IBus_Send2(0x68, 0xe7, d, 9); /* Display "MP3" on ANZV OBC TextBar - Radio Screen (11) */
+
+  } else if(memcmp(BTN_RIGHT_TELEPHONE, p, 6) == 0) {
+    ssm.enable = !ssm.enable;
+  } else if(memcmp(BTN_LEFT_TELEPHONE_PRESSED, p, 6) == 0) {
+  } else if(memcmp(BTN_LEFT_TELEPHONE_RELEASED, p, 6) == 0) {
+  }
+}
+
+const uint8_t BTN_RADIO_POWER[] = { 0x68, 0x04, 0xc0, 0x02, 0x00, 0xae };
+
+void IBus_DecodeRad(uint8_t *p)
+{
+  if(memcmp(BTN_RADIO_POWER, p, 6) == 0) {
+    ssm.radioPowerOn = !ssm.radioPowerOn;
+    Usart2_Printf("\r\nRadio Power %s\r\n", ssm.radioPowerOn ? "On" : "Off");   
+  }
+}
+
+/*
+*
+*/
+
 int Shell_Run(Shell *s)
 {
   if(s->len == 0)
@@ -485,13 +636,14 @@ int Shell_Run(Shell *s)
     ret = IBus_StartReceive(argc, argv);
   else if(strcmp("stop", argv[0]) == 0)
     ret = IBus_StopReceive(argc, argv);
+/*  
   else if(strcmp("send", argv[0]) == 0) {
     if(argc > 2 && strcmp("raw", argv[1]) == 0)
       ret = IBus_SendRaw(argc, argv);
     else
       ret = IBus_Send(argc, argv);
   }
-
+*/
   Shell_InputReset(s);
 
   return ret;
@@ -513,18 +665,104 @@ static Shell shell;
 /* Private variables ---------------------------------------------------------*/
 GPIO_InitTypeDef GPIO_InitStructure;
 
-const uint8_t KEY_NEXT_PRESSED[] = { 0x50, 0x04, 0x68, 0x3b, 0x01, 0x06 };
-const uint8_t KEY_NEXT_RELEASED[] = { 0x50, 0x04, 0x68, 0x3b, 0x21, 0x26 };
-
-const uint8_t KEY_PREV_PRESSED[] = { 0x50, 0x04, 0x68, 0x3b, 0x08, 0x0f };
-const uint8_t KEY_PREV_RELEASED[] = { 0x50, 0x04, 0x68, 0x3b, 0x28, 0x2f };
-
-const uint8_t KEY_VOLUME_UP[] = { 0x50, 0x04, 0x68, 0x32, 0x11, 0x1f };
-const uint8_t KEY_VOLUME_DOWN[] = { 0x50, 0x04, 0x68, 0x32, 0x10, 0x1e };
-
-
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
+
+/*
+*
+*/
+
+static uint32_t tim4Tick = 0;
+
+void Tim4_Init(void)
+{
+  NVIC_InitTypeDef NVIC_InitStructure;
+  
+  /* NVIC_PriorityGroup */
+  NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
+  NVIC_InitStructure.NVIC_IRQChannel = TIM4_IRQn;
+  NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+  NVIC_InitStructure.NVIC_IRQChannelSubPriority = 3;
+  NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+  NVIC_Init(&NVIC_InitStructure);
+
+  TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
+  //基础设置，时基和比较输出设置，由于这里只需定时，所以不用OC比较输出
+  RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4,ENABLE);
+  
+  TIM_DeInit(TIM4);
+
+  TIM_TimeBaseStructure.TIM_Period = 1000;//装载值
+  //prescaler is 72, that is 72000000/72/1000 = 1000Hz;
+  TIM_TimeBaseStructure.TIM_Prescaler = 71;//分频系数
+  //set clock division 
+  TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1; //or TIM_CKD_DIV2 or TIM_CKD_DIV4
+  //count up
+  TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+  
+  TIM_TimeBaseInit(TIM4, &TIM_TimeBaseStructure);
+  //clear the TIM4 overflow interrupt flag
+  TIM_ClearFlag(TIM4, TIM_FLAG_Update);
+  //TIM4 overflow interrupt enable
+  TIM_ITConfig(TIM4, TIM_IT_Update, ENABLE);
+  //enable TIM4
+  TIM_Cmd(TIM4, DISABLE);
+}
+
+void Tim4_Enable(void)
+{
+  TIM_Cmd(TIM4, ENABLE);
+}
+
+volatile uint32_t usart3_idle_tick = 0;
+
+static uint32_t tim4Tick_1ms = 0;
+
+void Tim4_1ms(void)
+{
+}
+
+static uint32_t tim4Tick_10ms = 0;
+
+void Tim4_10ms(void)
+{
+}
+
+static uint32_t tim4Tick_50ms = 0;
+
+void Tim4_50ms(void)
+{  
+}
+
+static uint32_t tim4Tick_100ms = 0;
+
+void Tim4_100ms(void)
+{
+}
+
+static uint32_t tim4Tick_200ms = 0;
+
+void Tim4_200ms(void)
+{
+  static bool ledSwitch = true;
+  if(ledSwitch)
+    GPIO_ResetBits(GPIOB, GPIO_Pin_12);  // turn off all led
+  else
+    GPIO_SetBits(GPIOB, GPIO_Pin_12);  // turn on all led
+
+  ledSwitch = !ledSwitch;
+}
+
+static uint32_t tim4Tick_1000ms = 0;
+
+void Tim4_1000ms(void)
+{
+/*  
+  uint8_t d2[] = { 0x3b, 0x01 };
+  IBus_Send2(0x50, 0x68, d2, 2);
+*/
+  Ssm_Update();
+}
 
 /**
   * @brief  Main program.
@@ -556,6 +794,8 @@ int main(void)
   GPIO_SetBits(GPIOB, GPIO_Pin_14); /* pull high */
   GPIO_SetBits(GPIOB, GPIO_Pin_15); /* pull high */
 
+  ADC1_Init();
+
   Tim4_Init();
   Tim4_Enable();
 
@@ -568,11 +808,14 @@ int main(void)
 
   Usart3_Init(9600);
 
+  Ssm_Init();
+
   uint32_t tick_1ms = tim4Tick_1ms;
   uint32_t tick_10ms = tim4Tick_10ms;
   uint32_t tick_50ms = tim4Tick_50ms;
   uint32_t tick_100ms = tim4Tick_100ms;
   uint32_t tick_200ms = tim4Tick_200ms;
+  uint32_t tick_1000ms = tim4Tick_1000ms;
 #if 0
   uint8_t d1[] = { 0x23, 0x80, 0x20, 0x50, 0x45, 0x54, 0x41, 0x20, 0x03, 0x31, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x04 };
   IBus_Send2(0x68, 0xe7, d1, 17);
@@ -612,9 +855,14 @@ int main(void)
       Tim4_200ms();
     }
 
+    if(tick_1000ms != tim4Tick_1000ms) {
+      tick_1000ms = tim4Tick_1000ms;
+      Tim4_1000ms();
+    }
+
     int len = Usart2_Poll();
     if(len > 0) {
-      char *p = Usart2_Gets();
+      uint8_t *p = (uint8_t *)Usart2_Gets();
       int i;
       for(i=0;i<len;i++) {
         if(p[i] == 0xd) { /* CR */
@@ -637,66 +885,34 @@ int main(void)
     }
 
     len = Usart3_Poll();
-  /*    
+/*    
       if(len > 0) 
         Usart2_Write(Usart3_Gets(), len);
-  */
-    if(IBus_State() == ibusStop) {
-      Usart3_Gets(); /* Flush data*/
-      continue;
-    }
-
+*/
     if(len > 0) {
       char *p = Usart3_Gets();
+
+      switch(p[0]) { /* src */
+        case MFL: /* MFL Multi Functional Steering Wheel Buttons */
+          IBus_DecodeMfl(&p[0]);
+          break;
+        case IKE: /* IKE Instrument Control Electronics */
+          IBus_DecodeIke(&p[0]);
+          break;
+        case RAD: /* Radio */
+          IBus_DecodeRad(&p[0]);
+          break;
+      }
+
+      if(IBus_State() == ibusStop)
+        continue;
 
       if(p[0] != IBus_ValidSource(p[0]) ||
         p[2] != IBus_ValidDestination(p[2]))
         continue;
 
-      if(len == 6) { /* sizeof(array) */
-        if(memcmp(KEY_NEXT_PRESSED, p, 6) == 0)
-          GPIO_ResetBits(GPIOB, GPIO_Pin_13); /* pull low */
-        else if(memcmp(KEY_NEXT_RELEASED, p, 6) == 0)
-          GPIO_SetBits(GPIOB, GPIO_Pin_13); /* pull high */
-        else if(memcmp(KEY_PREV_PRESSED, p, 6) == 0)
-          GPIO_ResetBits(GPIOB, GPIO_Pin_15); /* pull low */
-        else if(memcmp(KEY_PREV_RELEASED, p, 6) == 0)
-          GPIO_SetBits(GPIOB, GPIO_Pin_15); /* pull high */
-        else if(memcmp(KEY_VOLUME_UP, p, 6) == 0) {
-          uint8_t d1[] = { 0x23, 0x80, 0x20, 0x50, 0x45, 0x54, 0x41, 0x20, 0x03, 0x31, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x04 };
-          IBus_Send2(0x68, 0xe7, d1, 17);
-        } else if(memcmp(KEY_VOLUME_DOWN, p, 6) == 0) {
-          uint8_t d1[] = { 0x23, 0x80, 0x20, 0x42, 0x54, 0x42, 0x54, 0x20, 0x03, 0x31, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x04 };
-          IBus_Send2(0x68, 0xe7, d1, 17);
-        }
-
-      }
-
       Usart2_Puts("\r\n");
-#if 0
-      Usart2_Printf("Source : %s\r\n", ibus_device_name(p[0]));
-      Usart2_Printf("Length : %d\r\n", p[1]);
-      Usart2_Printf("Destination : %s\r\n", ibus_device_name(p[2]));
-      Usart2_Printf("CRC : %s\r\n", hextoa(XOR_Checksum((uint8_t *)&p[0], len - 1))); /* All exclude CRC itself */
 
-      int i;
-      for(i=0;i<len;i++) {
-        if(p[i] < 0x20 || p[i] > 0x7e)
-          Usart2_Write((uint8_t *)".", 1);
-        else
-          Usart2_Write((uint8_t *)&p[i], 1);
-        if(i != 0 && i % 20 == 0)
-          Usart2_Puts("\r\n");
-      }
-      Usart2_Puts("\r\n");
-      for(i=0;i<len;i++) {
-        Usart2_Write((uint8_t *)hextoa(p[i]), 2);
-        Usart2_Write((uint8_t *)" ", 1);
-        if(i != 0 && i % 20 == 0)
-          Usart2_Puts("\r\n");
-      }
-      Usart2_Puts("\r\n");
-#else
       Usart2_Printf("%s : %s\r\n", hextoa(p[0]), ibus_device_name(p[0]));
       Usart2_Printf("%s : %s\r\n", hextoa(p[2]), ibus_device_name(p[2]));
       int i;
@@ -705,31 +921,16 @@ int main(void)
           Usart2_Write((uint8_t *)".", 1);
         else
           Usart2_Write((uint8_t *)&p[i], 1);
-#if 0        
-        if(i != 0 && i % 20 == 0)
-          Usart2_Puts("\r\n");
-#endif          
       }
       Usart2_Puts("\r\n");
       for(i=0;i<len;i++) {
         Usart2_Write((uint8_t *)hextoa(p[i]), 2);
         Usart2_Write((uint8_t *)" ", 1);
-#if 0
-        if(i != 0 && i % 20 == 0)
-          Usart2_Puts("\r\n");
-#endif
         if(i == 2 || i == (len - 2))
           Usart2_Write((uint8_t *)"| ", 2);
       }
       Usart2_Puts("\r\n");
-#endif      
-    }
-#if 0
-    GPIO_SetBits(GPIOB, GPIO_Pin_12);  // turn off all led
-    delay_ms(200);
-    GPIO_ResetBits(GPIOB, GPIO_Pin_12);  // turn on all led
-    delay_ms(200);
-#endif    
+    }    
   }
 }
 
@@ -768,8 +969,13 @@ void TIM4_IRQHandler(void)
       tim4Tick_100ms++;
     if(tim4Tick % 200 == 0)
       tim4Tick_200ms++;
+    if(tim4Tick % 1000 == 0)
+      tim4Tick_1000ms++;
+
+    usart3_idle_tick++;
+
     //
-    // 清除 TIM2
+    // 清除 TIM4
     TIM_ClearITPendingBit(TIM4, /*TIM_IT_Update*/ TIM_FLAG_Update);
   }
 }

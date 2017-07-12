@@ -1,0 +1,507 @@
+#
+# Next button pressed
+#
+
+50 : MFL Multi Functional Steering Wheel Buttons                                
+68 : RAD Radio                                                                  
+P.h;..                                                                          
+50 04 68 | 3b 01 | 06                                                           
+
+#
+# Next button released
+#
+                                                           
+50 : MFL Multi Functional Steering Wheel Buttons                                
+68 : RAD Radio                                                                  
+P.h;!&                                                                          
+50 04 68 | 3b 21 | 26                                                           
+
+#
+# Prev Button pressed
+#
+
+50 : MFL Multi Functional Steering Wheel Buttons                                
+68 : RAD Radio                                                                  
+P.h;..                                                                          
+50 04 68 | 3b 08 | 0f                                                           
+                  
+#
+# Prev button released
+#
+                                                              
+50 : MFL Multi Functional Steering Wheel Buttons                                
+68 : RAD Radio                                                                  
+P.h;(/                                                                          
+50 04 68 | 3b 28 | 2f                                                           
+
+#
+# Volume up
+#
+
+50 : MFL Multi Functional Steering Wheel Buttons                                
+68 : RAD Radio                                                                  
+P.h2..                                                                          
+50 04 68 | 32 11 | 1f                                                           
+
+#
+# Volume down
+#
+
+50 : MFL Multi Functional Steering Wheel Buttons                                
+68 : RAD Radio                                                                  
+P.h2..                                                                          
+50 04 68 | 32 10 | 1e                                                           
+
+#
+# Radio button 2 pressed
+#
+
+c0 : MID Multi-Information Display Buttons                                      
+68 : RAD Radio                                                                  
+..h1....                                                                        
+c0 06 68 | 31 80 00 02 | 1d                                                     
+
+#
+# Radio button 2 released
+#
+
+c0 : MID Multi-Information Display Buttons                                      
+68 : RAD Radio                                                                  
+..h1..B]                                                                        
+c0 06 68 | 31 80 00 42 | 5d                                                     
+                                                                                
+#
+# Radio button 3 pressed
+#
+
+c0 : MID Multi-Information Display Buttons                                      
+68 : RAD Radio                                                                  
+..h1....                                                                        
+c0 06 68 | 31 80 00 03 | 1c                                                     
+
+#
+# Radio button 3 released
+#
+
+c0 : MID Multi-Information Display Buttons                                      
+68 : RAD Radio                                                                  
+..h1..C\                                                                        
+c0 06 68 | 31 80 00 43 | 5c                                                     
+
+#
+# Telephone button - Left
+#
+
+50 : MFL Multi Functional Steering Wheel Buttons
+c8 : TEL Telephone
+P..;.'
+50 04 c8 | 3b 80 | 27 
+
+50 : MFL Multi Functional Steering Wheel Buttons
+c8 : TEL Telephone
+P..;..
+50 04 c8 | 3b a0 | 07 
+
+#
+# Telephone button - Right
+#
+
+50 : MFL Multi Functional Steering Wheel Buttons
+c8 : TEL Telephone
+P..;@.
+50 04 c8 | 3b 40 | e7 
+
+#
+# Radio Power On / Off
+#
+
+68 : RAD Radio
+c0 : MID Multi-Information Display Buttons
+h.....
+68 04 c0 | 02 00 | ae 
+
+#
+# IKE Text Display (16)
+#
+
+<68 17 80> 23 62 30  <Option>  <Text in ASCII Hex> <XOR>
+
+@ Options:
+
+35 00 normal display
+
+37 01 Display text between two red files
+
+37 03 Display text between two red flashing files
+
+37 04 Display the gong and text between two red flashing files
+
+37 05 Displaying the gong and text
+
+37 08 Gong I (without displaying a message)
+
+37 10 Gong II (without displaying a message)
+
+@ Note: 
+
+All characters that can be represented in the text line must always be sent, as otherwise the "old" characters are not overwritten. Thus the message length is always "17H".
+
+
+
+
+
+
+
+
+
+
+
+#
+# 
+#
+
+68 : RAD Radio
+18 : CDC CD-Player
+h...r
+68 03 18 | 01 | 72 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j..
+68 03 6a | 01 | 00 
+
+IBus\> 
+IBus\> 
+IBus\> 
+IBus\> 
+IBus\> 
+68 : RAD Radio
+c0 : MID Multi-Information Display Buttons
+h.....
+68 04 c0 | 02 00 | ae 
+IKE --> GLO : Temperature, Outside 31�°C, Coolant 96�°C
+
+68 : RAD Radio
+e7 : ANZV OBC TextBar
+h..#. 96 C .12.47V ..
+68 13 e7 | 23 80 20 39 36 20 43 20 03 31 32 2e 34 37 56 20 04 | 0c 
+
+IBus\> 
+IBus\> 
+IBus\> 
+IBus\> 
+IBus\> 
+68 : RAD Radio
+ff : LOC local
+h..6..
+68 04 ff | 36 af | 0a 
+
+68 : RAD Radio
+18 : CDC CD-Player
+h..8..Q
+68 05 18 | 38 03 1f | 51 
+
+68 : RAD Radio
+e7 : ANZV OBC TextBar
+h..#. CD .6-10    .d
+68 12 e7 | 23 c0 20 43 44 20 03 36 2d 31 30 20 20 20 20 04 | 64 
+
+68 : RAD Radio
+ff : LOC local
+h..61.
+68 04 ff | 36 31 | 94 
+
+68 : RAD Radio
+ff : LOC local
+h..6j.
+68 04 ff | 36 6a | cf 
+
+68 : RAD Radio
+ff : LOC local
+h..6.e
+68 04 ff | 36 c0 | 65 
+
+68 : RAD Radio
+ff : LOC local
+h..6.%
+68 04 ff | 36 80 | 25 
+
+68 : RAD Radio
+ff : LOC local
+h..6P.
+68 04 ff | 36 50 | f5 
+
+68 : RAD Radio
+ff : LOC local
+h..6.G
+68 04 ff | 36 e2 | 47 
+
+68 : RAD Radio
+ff : LOC local
+h..6..
+68 04 ff | 36 a0 | 05 
+
+68 : RAD Radio
+ff : LOC local
+h..61.
+68 04 ff | 36 31 | 94 
+
+68 : RAD Radio
+ff : LOC local
+h..6j.
+68 04 ff | 36 6a | cf 
+
+68 : RAD Radio
+ff : LOC local
+h..6.e
+68 04 ff | 36 c0 | 65 
+
+68 : RAD Radio
+ff : LOC local
+h..6.%
+68 04 ff | 36 80 | 25 
+
+68 : RAD Radio
+ff : LOC local
+h..6P.
+68 04 ff | 36 50 | f5 
+
+68 : RAD Radio
+ff : LOC local
+h..6.G
+68 04 ff | 36 e2 | 47 
+
+68 : RAD Radio
+e7 : ANZV OBC TextBar
+h..$..6-10    |
+68 0d e7 | 24 c0 00 36 2d 31 30 20 20 20 20 | 7c 
+
+68 : RAD Radio
+e7 : ANZV OBC TextBar
+h..!..` 1.2 . 3.4 . 5.6 .
+68 17 e7 | 21 c0 00 60 20 31 05 32 20 05 20 33 05 34 20 05 20 35 05 36 20 | 1b 
+
+68 : RAD Radio
+e7 : ANZV OBC TextBar
+h..!...FM.AM.RND. TP.SC.TAPE.
+68 1b e7 | 21 c0 00 06 46 4d 05 41 4d 05 52 4e 44 05 20 54 50 05 53 43 05 54 41 50 45 | 1d 
+
+IBus\> 
+IBus\> 
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j2.%
+68 04 6a | 32 11 | 25 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j2.%
+68 04 6a | 32 11 | 25 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j2!.
+68 04 6a | 32 21 | 15 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j2!.
+68 04 6a | 32 21 | 15 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j2!.
+68 04 6a | 32 21 | 15 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j2!.
+68 04 6a | 32 21 | 15 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j2!.
+68 04 6a | 32 21 | 15 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j2!.
+68 04 6a | 32 21 | 15 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j2.%
+68 04 6a | 32 11 | 25 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j2!.
+68 04 6a | 32 21 | 15 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j2!.
+68 04 6a | 32 21 | 15 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j2!.
+68 04 6a | 32 21 | 15 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j2.%
+68 04 6a | 32 11 | 25 
+
+IBus\> 
+IBus\> 
+IBus\> 
+IBus\> 
+68 : RAD Radio
+18 : CDC CD-Player
+h...r
+68 03 18 | 01 | 72 
+
+IBus\> 
+IBus\> 
+IBus\> 
+IBus\> 
+68 : RAD Radio
+e7 : ANZV OBC TextBar
+h..#. .
+68 05 e7 | 23 00 20 | 89                                    +-----------------------+
+                                                            |                       |
+68 : RAD Radio                                              |  無法開啟 /dev/ttyUSB0!   |
+e7 : ANZV OBC TextBar                                       |                       |
+h..!.. .                                                    +-----------------------+
+68 06 e7 | 21 00 00 20 | 88 
+
+68 : RAD Radio
+ff : LOC local
+h..6..
+68 04 ff | 36 af | 0a 
+
+68 : RAD Radio
+18 : CDC CD-Player
+h..8.-a
+68 05 18 | 38 01 2d | 61 
+
+IBus\> 
+68 : RAD Radio
+c0 : MID Multi-Information Display Buttons
+h.....
+68 04 c0 | 02 00 | ae 
+IKE --> GLO : Temperature, Outside 31�°C, Coolant 98�°C
+
+68 : RAD Radio
+e7 : ANZV OBC TextBar
+h..#. 98 C .12.46V ..
+68 13 e7 | 23 80 20 39 38 20 43 20 03 31 32 2e 34 36 56 20 04 | 03 
+stop
+IBus\> IKE --> GLO : Temperature, Outside 31�°C, Coolant 97�°C
+
+
+
+
+
+
+
+
+
+
+Heated Oxygen Sensors (HO2S)
+The HO2S provide feedback signals to the ECM to enable closed loop control of the Air Fuel 
+Ratio (AFR). Four HO2S are installed, one pre-catalyst and one post-catalyst per cylinder bank. 
+Each HO2S produces an output voltage which is inversely proportional to the oxygen content of 
+the exhaust gases.
+
+Each HO2S consists of a zirconium sensing element with a gas permeable ceramic coating on 
+the outer surface. The outer surface of the sensing element is exposed to the exhaust gas and 
+the inner surface is exposed to ambient air. The difference in the oxygen content of the two 
+gases produces an electrical potential difference across the sensing element. The voltage 
+produced depends on the differential between the two oxygen contents. When the AFR is 
+Lambda 1 (i.e. stoichiometric AFR of 14.7:1 by mass) the voltage produced is approximately 
+450 mV. With a lean mixture of Lambda 1.2, the higher oxygen content of the exhaust gases 
+results in a voltage of approximately 100 mV. With a rich mixture of Lambda 0.8, the lower 
+oxygen content of the exhaust gases results in a voltage of approximately 900 mV.
+The ECM monitors the effect of altering the injector pulse widths using the information supplied 
+by the two HO2S. Injector pulse width is the length of time the injector is energized, which 
+determines how much fuel is injected. The response time is such that under certain driving 
+conditions, the ECM can assess individual cylinder contributions to the total exhaust emissions. 
+This enables the ECM to adapt the fuelling strategy on a cylinder by cylinder basis, i.e. inject the 
+precise amount of fuel required by each individual cylinder at any given time.
+
+The ECM continuously checks the signals supplied by the HO2S for plausibility. If it detects an 
+implausible signal, the ECM stores a relevant fault code and details of engine speed, engine 
+load and the HO2S signal voltage. The ECM requires the HO2S signals to set most of its 
+adaptions. Failure of an HO2S results in most of these adaptions resetting to their default 
+values. This, in turn, results in loss of engine refinement. The engine may exhibit poor idle 
+characteristics and emit a strong smell of rotten eggs from the exhaust (caused by an increase 
+in hydrogen sulphide).
+The efficiency of the HO2S slowly deteriorates with use and must be periodically replaced 
+(currently every 120,000 miles, but refer to the maintenance schedules for the latest service 
+replacement period). The ECM is able to detect this steady deterioration from the HO2S 
+signals. If a sensor deteriorates beyond a predetermined threshold, the ECM stores a fault code 
+and captures details of the engine speed, engine load and battery voltage.
+
+The HO2S needs a high operating temperature to work effectively. To ensure a suitable 
+operating temperature is reached as soon as possible, each sensor incorporates a heating 
+element inside the ceramic tip. This element heats the HO2S to a temperature greater than 350 
+°C (662 °F). The heating rate (the speed at which the temperature rises) is carefully controlled 
+by the ECM to prevent thermal shock to the ceramic material. The ECM supplies a Pulse Width 
+Modulated (PWM) supply to the heater elements to control the rate at which the HO2S 
+temperature is increased. The HO2S are heated during engine warm-up and again after a 
+period of engine idle.
+
+The ECM monitors the state of the heating elements by calculating the amount of current 
+supplied to each sensor during operation. If the ECM identifies that the resistance of either 
+heating element is too high or too low, it will store a fault code, the engine speed, coolant 
+temperature and the battery voltage.
+HO2S are very sensitive devices. They must be handled carefully at all times. Failure to handle 
+correctly will result in a very short service life, or non-operation. HO2S are threads coated with 
+an anti-seize compound prior to installation. Care should be taken to avoid getting this 
+compound on the sensor tip. If the sensor needs to be removed and refitted, a small amount of 
+anti-seize compound should be applied (see workshop manual for details).
+
+
+
+
+
+
+
+
+
+
+
+http://p38arover.com/rover/p38a/Engine_Management/BOSCH_ME72_Systems.pdf
+
+p.18 ~ p.21 (第18至21頁)
+
+Engine Control Module (ECM) - 引擎控制模組
+
+Heated Oxygen Sensors (HO2S) - 具有加熱能力的含氧感知器
+
+HO2S 回應訊號給 ECM 使其能夠進入封閉迴路的油氣混合比控制. 總共有四個HO2S被安裝在每列汽缸的觸媒前後各一個 (V8有兩列汽缸在觸媒前後各一個,所以總共四個).每個HO2S會輸出與廢氣含氧量成反比的電壓輸出.HO2S由鋯金屬感測元件以及具有氣體可穿透性的陶瓷包覆在外部表面.外部表面直接暴露在廢氣當中而內部表面則與大氣相通(參考圖片).內外部表面含氧量的差異在感測器產生電位差.電壓的產生則依靠前後兩個HO2S2的訊號差異.當AFR(油氣混合比)比例參數Lambda為1時(例如空氣及汽油質量比為14.7比1)輸出電壓為約為450mV.當Lambda為1.2的較稀混合比,廢氣中的含氧量增加而輸出電壓約為100mV.叫濃的混合比Lambda 0.8造成廢氣含氧量降低而輸出電壓約為900mV.
+
+ECM經由兩個HO2S提供的資訊來監控噴油嘴脈衝寬度改變的效果.噴油嘴脈衝寬度是噴油嘴作動噴油的時間長度也就是決定有多少油量噴出.反應時間則依據不同的駕駛情況而定,ECM可以得知每個汽缸對總排氣量的貢獻度.這讓ECM可以對每個汽缸變動噴油的策略,例如在任何時間點精確控制每個汽缸的噴油量.
+
+ECM持續不停檢查HO2S的輸出訊號是否正確可信.若檢查出不合理的訊號,ECM會儲存相關的故障碼以及引擎轉速,負載及HO2S的輸出電壓.ECM需要HO2S的訊號來設定大部分的調適值.某個HO2S錯誤失效會造成這些調適值重置為預設值.接著造成引擎失去最佳化設定.引擎怠速可能變糟以及排氣像是腐爛雞蛋的氣味(起因於氧化硫的增加).
+
+HO2S的功效會隨著使用時間持續惡化而需要週期性的更換(目前是每120000英哩,但還是要參考保養計畫表最新的更換週期).ECM可以從HO2S的訊號偵測到持續穩定的劣化.若HO2S的劣化程度超過預定的水準,ECM會儲存相關的故障碼以及引擎轉速,負載及電池電壓.
+
+HO2S需要高溫才能有效率工作.為了保證能快速達到工作溫度,每個HO2S感測器都有加熱元件在陶瓷頂端內.加熱器會將HO2S感測器加熱到超過350度C(662F).加熱速率(溫度上升的速度)由ECM小心的控制以免造成陶瓷材料的溫度衝擊.ECM輸出PWM訊號給加熱器來控制HO2S溫度上升速率.HO2S在引擎暖機及一段時間的怠速後會被加熱.
+
+ECM以計算有多少電流供給來監測每個工作中的HO2S感測器的加熱器狀況.若ECM辨識出加熱器阻抗太高或太低,ECM會儲存相關的故障碼以及引擎轉速,冷卻水溫及電池電壓.
+
+HO2S感測器是非常靈敏的裝置,必須要一直小心的操作.沒有正確的操作將會導致非常短的使用壽命或無法操作.安裝HO2S感測器時會塗覆一些抗鎖死合成劑.要小心不可塗抹感測器的頂端.若感測器需要拆卸並重新安裝,應該要塗覆少量的抗鎖死合成劑
+
+
+
+
+
+
+
+
+
+
+

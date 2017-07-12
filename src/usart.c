@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include "usart.h"
+#include "delay.h"
 
 #ifndef USART_TX_DMA
 
@@ -349,7 +350,7 @@ static char usart3_tx_data[MAX_TX_LEN];
 static char usart3_rx_data[MAX_RX_LEN];
 static UsartRx usart3_rx = {{0}}; /* Since the first member in the structure is an array so it need: {{0}}; */
 #ifdef USART3_LIN_BUS
-static bool_t linBusBusy = false;
+//static bool_t linBusBusy = false;
 #endif
 
 void Usart3_Init(uint32_t baudrate)
@@ -375,7 +376,7 @@ void Usart3_Init(uint32_t baudrate)
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
 
 	USART_InitStructure.USART_BaudRate = baudrate;
-	USART_InitStructure.USART_WordLength = USART_WordLength_8b;
+	USART_InitStructure.USART_WordLength = USART_WordLength_9b; /* 8 bits data and 1 bit parity */
 	USART_InitStructure.USART_StopBits = USART_StopBits_1;
 #ifdef USART3_LIN_BUS
 	USART_InitStructure.USART_Parity = USART_Parity_Even;
@@ -467,7 +468,7 @@ void Usart3_Init(uint32_t baudrate)
 	DMA_ITConfig(DMA1_Channel3, DMA_IT_TC, ENABLE);
 	/* Enable the DMA Rx Stream */
 	DMA_Cmd(DMA1_Channel3, ENABLE);
-	/* Enable the USART1 Rx DMA Interrupt */
+	/* Enable the USART3 Rx DMA Interrupt */
 	NVIC_EnableIRQ(DMA1_Channel3_IRQn);		
 }
 
@@ -495,9 +496,6 @@ void DMA1_Channel3_IRQHandler(void)
 
 void Usart3_Puts(char *string) 
 {
-#ifdef USART3_LIN_BUS
-	USART_SendBreak(USART3);
-#endif
 #if USART_TX_DMA
 	uint16_t len = strlen(string);  
 	if(len > MAX_TX_LEN)
@@ -528,9 +526,12 @@ void Usart3_Printf(const char *fmt, ...)
 void Usart3_Write(uint8_t *data, uint8_t len)
 {
 #ifdef USART3_LIN_BUS
-	while(linBusBusy);
+	//while(linBusBusy && usart3_idle_tick < 11);
+	while(usart3_idle_tick < 3);
 
-	USART_SendBreak(USART3);
+	//USART_SendBreak(USART3);
+	//while (USART_GetFlagStatus(USART3, USART_FLAG_TC) == RESET);
+
 #endif
 #if USART_TX_DMA
 	if(len > MAX_TX_LEN)
@@ -539,8 +540,14 @@ void Usart3_Write(uint8_t *data, uint8_t len)
 	while (USART_GetFlagStatus(USART3, USART_FLAG_TC) == RESET);
 
 	DMA_Cmd(DMA1_Channel2, DISABLE);
+#ifdef USART3_LIN_BUS_SYNC
+	usart3_tx_data[0] = 0x55;
+	memcpy(&usart3_tx_data[1], data, len); 
+	DMA_SetCurrDataCounter(DMA1_Channel2, len+1);
+#else
 	memcpy(usart3_tx_data, data, len); 
 	DMA_SetCurrDataCounter(DMA1_Channel2, len);
+#endif	
 	DMA_Cmd(DMA1_Channel2, ENABLE);
 #else
 	Usart_Write(USART3, data, len);
@@ -571,7 +578,7 @@ void USART3_IRQHandler(void)
         USART3->SR;  
         USART3->DR; //清USART_IT_IDLE标志  
         //关闭DMA  
-        DMA_Cmd(DMA1_Channel3, DISABLE);  
+        DMA_Cmd(DMA1_Channel3, DISABLE);
         //清除标志位  
         DMA_ClearFlag(DMA1_FLAG_TC3);            
         //获得接收帧帧长  
@@ -588,14 +595,15 @@ void USART3_IRQHandler(void)
         //打开DMA  
         DMA_Cmd(DMA1_Channel3, ENABLE);  
 #ifdef USART3_LIN_BUS
-        linBusBusy = false;
+        //linBusBusy = false;
 #endif
+        usart3_idle_tick = 0;
     }
 
 #ifdef USART3_LIN_BUS
 	if(USART_GetITStatus(USART3, USART_IT_LBD) != RESET) {
 		USART_ClearITPendingBit(USART3, USART_IT_LBD);     //清break中断位
-		linBusBusy = true;
+		//linBusBusy = true;
 	}
 #endif
 }

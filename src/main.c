@@ -133,6 +133,7 @@ static uint8_t atohex8(char *s)
   return value;
 }
 
+#if 0
 static char *ibus_device_name(uint8_t id) 
 {
   switch(id) {
@@ -179,7 +180,8 @@ static char *ibus_device_name(uint8_t id)
     default: return "Unknown";
   }
 }
-#if 0
+#endif
+
 static char *ibus_device_alias(uint8_t id) 
 {
   switch(id) {
@@ -226,7 +228,6 @@ static char *ibus_device_alias(uint8_t id)
     default: return "Unknown";
   }
 }
-#endif
 
 #define GM 0x00 /*Body module*/
 #define SHD 0x08 /*Sunroof Control*/
@@ -473,6 +474,44 @@ uint8_t IBus_ValidDestination(uint8_t id)
   return 0;
 }
 
+void IBus_RedrawRadioScreen(char *text)
+{
+#define MAX_RADIO_SCREEN_LENGTH 11
+
+  if(text == 0 || strlen(text) <= 0)
+    return;
+
+  uint8_t len = strlen(text);
+
+  if(len > MAX_RADIO_SCREEN_LENGTH)
+    len = MAX_RADIO_SCREEN_LENGTH;
+  //uint8_t d[] = { 0x23, 0x40, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
+  uint8_t d[] = { 0x23, 0x80, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
+
+  memcpy(&d[3], text, len);
+  IBus_Send2(0x68, 0xe7, d, 3+MAX_RADIO_SCREEN_LENGTH); /* Display on ANZV OBC TextBar */
+}
+
+void IBus_RedrawIkeScreen(char *text)
+{
+#define MAX_IKE_SCREEN_LENGTH 20
+
+  if(text == 0 || strlen(text) <= 0)
+    return;
+
+  uint8_t len = strlen(text);
+
+  if(len > MAX_IKE_SCREEN_LENGTH)
+    len = MAX_IKE_SCREEN_LENGTH;
+
+  uint8_t d[] = { 0x23, 0x62, 0x30, 0x00, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
+  uint8_t *p = &d[4];
+  uint8_t frontPorch = (MAX_IKE_SCREEN_LENGTH - len) >> 1;
+  memcpy(p + frontPorch, text, len);
+
+  IBus_Send2(0x68, 0x80, d, 25); /* Display "12345678901234567890" on IKE - Text Screen (20) */
+}
+
 /* SSM : System Status Monitor */
 
 typedef struct {
@@ -504,6 +543,10 @@ void Ssm_Update()
   IBus_Send2(0x68, 0xe7, d, 17); /* Display water temperture on ANZV OBC TextBar */
 }
 
+/*
+*
+*/
+
 void IBus_DecodeIke(uint8_t *p)
 {
   switch(p[3]) { /* Message ID */
@@ -526,10 +569,10 @@ const uint8_t BTN_PREV_RELEASED[] = { 0x50, 0x04, 0x68, 0x3b, 0x28, 0x2f };
 const uint8_t BTN_VOLUME_UP[] = { 0x50, 0x04, 0x68, 0x32, 0x11, 0x1f };
 const uint8_t BTN_VOLUME_DOWN[] = { 0x50, 0x04, 0x68, 0x32, 0x10, 0x1e };
 
-const uint8_t BTN_RIGHT_TELEPHONE[] = { 0x50, 0x04, 0xc8, 0x3b, 0x40, 0xe7 };
+const uint8_t BTN_RT_TELEPHONE[] = { 0x50, 0x04, 0xc8, 0x3b, 0x40, 0xe7 };
 
-const uint8_t BTN_LEFT_TELEPHONE_PRESSED[] = { 0x50, 0x04, 0xc8, 0x3b, 0x80, 0x27 };
-const uint8_t BTN_LEFT_TELEPHONE_RELEASED[] = { 0x50, 0x04, 0xc8, 0x3b, 0xa0, 0x07 };
+const uint8_t BTN_TELEPHONE_PRESSED[] = { 0x50, 0x04, 0xc8, 0x3b, 0x80, 0x27 };
+const uint8_t BTN_TELEPHONE_RELEASED[] = { 0x50, 0x04, 0xc8, 0x3b, 0xa0, 0x07 };
 
 void IBus_DecodeMfl(uint8_t *p)
 {  
@@ -537,31 +580,37 @@ void IBus_DecodeMfl(uint8_t *p)
     GPIO_ResetBits(GPIOB, GPIO_Pin_13); /* pull low */
   } else if(memcmp(BTN_NEXT_RELEASED, p, 6) == 0) {
     GPIO_SetBits(GPIOB, GPIO_Pin_13); /* pull high */
-
-    uint8_t d1[] = { 0x23, 0x40, 0x20, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0x31 };
-    IBus_Send2(0x68, 0xe7, d1, 14); /* Display "12345678901" on ANZV OBC TextBar */    
   } else if(memcmp(BTN_PREV_PRESSED, p, 6) == 0) {
     GPIO_ResetBits(GPIOB, GPIO_Pin_15); /* pull low */
   } else if(memcmp(BTN_PREV_RELEASED, p, 6) == 0) {
     GPIO_SetBits(GPIOB, GPIO_Pin_15); /* pull high */
-
-    uint8_t d2[] = { 0x23, 0x04, 0x20, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30 };
-    IBus_Send2(0x68, 0xe7, d2, 23); /* Display "12345678901234567890" on ANZV OBC TextBar - BC Screen (20) */    
-
   } else if(memcmp(BTN_VOLUME_UP, p, 6) == 0) {
-
-    uint8_t d3[] = { 0x23, 0x62, 0x30, 0x35, 0x00, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36 };
-    IBus_Send2(0x68, 0x80, d3, 21); /* Display "1234567890123456" on IKE - Text Screen (20) */
-
   } else if(memcmp(BTN_VOLUME_DOWN, p, 6) == 0) {
-
+  } else if(memcmp(BTN_RT_TELEPHONE, p, 6) == 0) {
+    IBus_RedrawIkeScreen("BMW E38 Individual");
+  } else if(memcmp(BTN_TELEPHONE_PRESSED, p, 6) == 0) {
+  } else if(memcmp(BTN_TELEPHONE_RELEASED, p, 6) == 0) {
+#if 0
+    uint8_t d3[] = { 0x23, 0x62, 0x30, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30 };
+    IBus_Send2(0x68, 0x80, d3, 25); /* Display "12345678901234567890" on IKE - Text Screen (20) */
+#endif
+#if 0
     uint8_t d[] = { 0x21, 0x40, 0x00, 0x09, 0x05, 0x05, 0x4D, 0x50, 0x33 };
-    IBus_Send2(0x68, 0xe7, d, 9); /* Display "MP3" on ANZV OBC TextBar - Radio Screen (11) */
-
-  } else if(memcmp(BTN_RIGHT_TELEPHONE, p, 6) == 0) {
+    IBus_Send2(0x68, 0xe7, d, 9); /* Display "MP3" on ANZV OBC TextBar - Radio Screen */
+#endif
+#if 0    
+    uint8_t d2[] = { 0x23, 0x04, 0x20, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30 };
+    IBus_Send2(0x80, 0xe7, d2, 23); /* Display "12345678901234567890" on ANZV OBC TextBar - BC Screen (20) --- Still on Radio screen ??? */    
+#endif
     ssm.enable = !ssm.enable;
-  } else if(memcmp(BTN_LEFT_TELEPHONE_PRESSED, p, 6) == 0) {
-  } else if(memcmp(BTN_LEFT_TELEPHONE_RELEASED, p, 6) == 0) {
+
+    if(ssm.enable == false) {
+      IBus_RedrawRadioScreen("           ");
+#if 0      
+      uint8_t d1[] = { 0x23, 0x40, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
+      IBus_Send2(0x68, 0xe7, d1, 14); /* Display on ANZV OBC TextBar */
+#endif      
+    }
   }
 }
 
@@ -569,9 +618,55 @@ const uint8_t BTN_RADIO_POWER[] = { 0x68, 0x04, 0xc0, 0x02, 0x00, 0xae };
 
 void IBus_DecodeRad(uint8_t *p)
 {
+#if 0  
   if(memcmp(BTN_RADIO_POWER, p, 6) == 0) {
     ssm.radioPowerOn = !ssm.radioPowerOn;
     Usart2_Printf("\r\nRadio Power %s\r\n", ssm.radioPowerOn ? "On" : "Off");   
+  }
+#endif
+}
+
+const uint8_t BTN_MID_TOKEN[] = { 0x31, 0x80, 0x00 };  
+
+void IBus_DecodeMid(uint8_t *p)
+{
+  if(p[2] == RAD) {
+    if(memcmp(&p[3], BTN_MID_TOKEN, 3) == 0) {
+      if(p[6] & 0xf0) { /* Button released */
+        switch(p[6] & 0x0f) {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+          case 4: break;
+          case 5: break;
+          case 6: break;
+          case 7: break;
+          case 8: break;
+          case 9: break;
+          case 10: break;
+          case 11: break;
+          case 12: break;
+        }
+      } else { /* Button pressed */
+Usart2_Printf("\r\nRadio button %d pressed\r\n", p[6] & 0x0f);
+        switch(p[6] & 0x0f) {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+          case 4: break;
+          case 5: break;
+          case 6: break;
+          case 7: break;
+          case 8: break;
+          case 9: break;
+          case 10: break;
+          case 11: break;
+          case 12: break;
+        }
+      }
+    }
   }
 }
 
@@ -800,9 +895,9 @@ int main(void)
   Tim4_Enable();
 
   Usart2_Init(115200);
-  Usart2_Puts("\r\nIBus Inspector v0.0.1");
+  Usart2_Puts("\r\nIBus Inspector v0.0.2");
   Usart2_Puts("\r\nAuthor : Steve Chang");
-  Usart2_Puts("\r\n26th October 2016");
+  Usart2_Puts("\r\n26th October 2017");
 
   Usart2_Puts("\r\nIBus\\> ");
 
@@ -810,19 +905,14 @@ int main(void)
 
   Ssm_Init();
 
+  IBus_RedrawIkeScreen("BMW E38 Individual");
+
   uint32_t tick_1ms = tim4Tick_1ms;
   uint32_t tick_10ms = tim4Tick_10ms;
   uint32_t tick_50ms = tim4Tick_50ms;
   uint32_t tick_100ms = tim4Tick_100ms;
   uint32_t tick_200ms = tim4Tick_200ms;
   uint32_t tick_1000ms = tim4Tick_1000ms;
-#if 0
-  uint8_t d1[] = { 0x23, 0x80, 0x20, 0x50, 0x45, 0x54, 0x41, 0x20, 0x03, 0x31, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x04 };
-  IBus_Send2(0x68, 0xe7, d1, 17);
-
-  uint8_t d2[] = { 0x01 };
-  IBus_Send2(0xc0, 0x68, d2, 1);
-#endif
 
   /* To achieve GPIO toggling maximum frequency, the following  sequence is mandatory. 
      You can monitor PD0 or PD2 on the scope to measure the output signal. 
@@ -902,6 +992,9 @@ int main(void)
         case RAD: /* Radio */
           IBus_DecodeRad(&p[0]);
           break;
+        case MID: /* Multi-info display */
+          IBus_DecodeMid(&p[0]);
+          break;
       }
 
       if(IBus_State() == ibusStop)
@@ -912,7 +1005,7 @@ int main(void)
         continue;
 
       Usart2_Puts("\r\n");
-
+#if 0
       Usart2_Printf("%s : %s\r\n", hextoa(p[0]), ibus_device_name(p[0]));
       Usart2_Printf("%s : %s\r\n", hextoa(p[2]), ibus_device_name(p[2]));
       int i;
@@ -930,6 +1023,18 @@ int main(void)
           Usart2_Write((uint8_t *)"| ", 2);
       }
       Usart2_Puts("\r\n");
+#else
+      int i;
+      for(i=0;i<len;i++) {
+        Usart2_Write((uint8_t *)hextoa(p[i]), 2);
+        Usart2_Write((uint8_t *)" ", 1);
+        if(i == 2 || i == (len - 2))
+          Usart2_Write((uint8_t *)"| ", 2);
+      }
+      Usart2_Puts("\r\n");
+      Usart2_Printf("   %s --> %s\r\n", ibus_device_alias(p[0]), ibus_device_alias(p[2]));
+#endif      
+      
     }    
   }
 }

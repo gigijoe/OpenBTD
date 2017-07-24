@@ -15,10 +15,14 @@
 #include "usart.h"
 #include "delay.h"
 
+#define LIN_BUS_IDLE_TICK 3
+
 #ifndef USART_TX_DMA
 
 static void Usart_Puts(USART_TypeDef* USARTx, char *string)
 {
+	USART_ITConfig(USARTx, USART_IT_TXE, ENABLE);
+
     while(*string){
         /* 傳送訊息至 USARTx */
         USART_SendData(USARTx, (uint16_t) *string++);
@@ -30,6 +34,8 @@ static void Usart_Puts(USART_TypeDef* USARTx, char *string)
 
 static void Usart_Write(USART_TypeDef* USARTx, uint8_t *data, uint8_t len)
 {
+	USART_ITConfig(USARTx, USART_IT_TXE, ENABLE);
+
     while(len){
         /* 傳送訊息至 USART2 */
         USART_SendData(USARTx, (uint16_t) *data++);
@@ -108,9 +114,11 @@ typedef enum { false = 0, true} bool_t;
 */
 
 #if USART_TX_DMA
-
 static char usart2_tx_data[MAX_TX_LEN];
+#endif
 
+#ifdef USART2_LIN_BUS
+volatile uint32_t usart2_idle_tick = 0;
 #endif
 
 static char usart2_rx_data[MAX_RX_LEN];
@@ -140,9 +148,17 @@ void Usart2_Init(uint32_t baudrate)
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
 	USART_InitStructure.USART_BaudRate = baudrate;
+#ifdef USART2_LIN_BUS
+	USART_InitStructure.USART_WordLength = USART_WordLength_9b; /* 8 bits data and 1 bit parity */
+#else
 	USART_InitStructure.USART_WordLength = USART_WordLength_8b;
+#endif
 	USART_InitStructure.USART_StopBits = USART_StopBits_1;
+#ifdef USART2_LIN_BUS
+	USART_InitStructure.USART_Parity = USART_Parity_Even;
+#else
 	USART_InitStructure.USART_Parity = USART_Parity_No;
+#endif
 	USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
 	USART_InitStructure.USART_Mode = USART_Mode_Tx | USART_Mode_Rx;
 	USART_Init(USART2, &USART_InitStructure);
@@ -170,6 +186,12 @@ void Usart2_Init(uint32_t baudrate)
 	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;		 // this sets the subpriority inside the group
 	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;			 // the USART1 interrupts are globally enabled
 	NVIC_Init(&NVIC_InitStructure);							 // the properties are passed to the NVIC_Init function which takes care of the low level stuff	
+
+#ifdef USART2_LIN_BUS
+	USART_LINBreakDetectLengthConfig(USART2, USART_LINBreakDetectLength_11b);
+	USART_LINCmd(USART2, ENABLE);
+	USART_ITConfig(USART2, USART_IT_LBD, ENABLE); // enable the USART1 receive interrupt 
+#endif
 
 	USART_Cmd(USART2, ENABLE); // enable USART2
 
@@ -279,6 +301,13 @@ void Usart2_Printf(const char *fmt, ...)
 
 void Usart2_Write(uint8_t *data, uint8_t len)
 {
+#ifdef USART2_LIN_BUS
+	while(usart2_idle_tick < LIN_BUS_IDLE_TICK);
+
+	//USART_SendBreak(USART2);
+	//while (USART_GetFlagStatus(USART2, USART_FLAG_TC) == RESET);
+
+#endif
 #if USART_TX_DMA
 	if(len > MAX_TX_LEN)
 		len = MAX_TX_LEN;
@@ -313,8 +342,7 @@ void USART2_IRQHandler(void)
 {	
 	uint16_t len = 0;  
      
-    if(USART_GetITStatus(USART2, USART_IT_IDLE) != RESET) /* 接收完成中断 */
-    {    	
+    if(USART_GetITStatus(USART2, USART_IT_IDLE) != RESET) { /* 接收完成中断 */
         USART2->SR;  
         USART2->DR; //清USART_IT_IDLE标志  
         //关闭DMA  
@@ -335,6 +363,20 @@ void USART2_IRQHandler(void)
         //打开DMA  
         DMA_Cmd(DMA1_Channel6, ENABLE);  
     }
+
+    if(USART_GetITStatus(USART2, USART_IT_TXE) != RESET) { /* TX fifo Empty */
+		/* Disable the Transmit interrupt if buffer is empty */
+		USART_ITConfig(USART2, USART_IT_TXE, DISABLE);    
+#ifdef USART2_LIN_BUS
+		usart2_idle_tick = 0; /* Reset idle tick to prevent TX racing */
+#endif    	
+    }
+
+#ifdef USART2_LIN_BUS
+	if(USART_GetITStatus(USART2, USART_IT_LBD) != RESET) {
+		USART_ClearITPendingBit(USART2, USART_IT_LBD);     //清break中断位
+	}
+#endif
 }
 
 /*
@@ -342,16 +384,15 @@ void USART2_IRQHandler(void)
 */
 
 #if USART_TX_DMA
-
 static char usart3_tx_data[MAX_TX_LEN];
+#endif
 
+#ifdef USART3_LIN_BUS
+volatile uint32_t usart3_idle_tick = 0;
 #endif
 
 static char usart3_rx_data[MAX_RX_LEN];
 static UsartRx usart3_rx = {{0}}; /* Since the first member in the structure is an array so it need: {{0}}; */
-#ifdef USART3_LIN_BUS
-//static bool_t linBusBusy = false;
-#endif
 
 void Usart3_Init(uint32_t baudrate)
 {
@@ -376,7 +417,11 @@ void Usart3_Init(uint32_t baudrate)
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
 
 	USART_InitStructure.USART_BaudRate = baudrate;
+#ifdef USART3_LIN_BUS
 	USART_InitStructure.USART_WordLength = USART_WordLength_9b; /* 8 bits data and 1 bit parity */
+#else
+	USART_InitStructure.USART_WordLength = USART_WordLength_8b;
+#endif
 	USART_InitStructure.USART_StopBits = USART_StopBits_1;
 #ifdef USART3_LIN_BUS
 	USART_InitStructure.USART_Parity = USART_Parity_Even;
@@ -526,8 +571,7 @@ void Usart3_Printf(const char *fmt, ...)
 void Usart3_Write(uint8_t *data, uint8_t len)
 {
 #ifdef USART3_LIN_BUS
-	//while(linBusBusy && usart3_idle_tick < 11);
-	while(usart3_idle_tick < 3);
+	while(usart3_idle_tick < LIN_BUS_IDLE_TICK);
 
 	//USART_SendBreak(USART3);
 	//while (USART_GetFlagStatus(USART3, USART_FLAG_TC) == RESET);
@@ -540,14 +584,8 @@ void Usart3_Write(uint8_t *data, uint8_t len)
 	while (USART_GetFlagStatus(USART3, USART_FLAG_TC) == RESET);
 
 	DMA_Cmd(DMA1_Channel2, DISABLE);
-#ifdef USART3_LIN_BUS_SYNC
-	usart3_tx_data[0] = 0x55;
-	memcpy(&usart3_tx_data[1], data, len); 
-	DMA_SetCurrDataCounter(DMA1_Channel2, len+1);
-#else
 	memcpy(usart3_tx_data, data, len); 
 	DMA_SetCurrDataCounter(DMA1_Channel2, len);
-#endif	
 	DMA_Cmd(DMA1_Channel2, ENABLE);
 #else
 	Usart_Write(USART3, data, len);
@@ -594,16 +632,21 @@ void USART3_IRQHandler(void)
         DMA_SetCurrDataCounter(DMA1_Channel3, MAX_RX_LEN);  
         //打开DMA  
         DMA_Cmd(DMA1_Channel3, ENABLE);  
-#ifdef USART3_LIN_BUS
-        //linBusBusy = false;
-#endif
+
         usart3_idle_tick = 0;
+    }
+
+    if(USART_GetITStatus(USART3, USART_IT_TXE) != RESET) { /* TX fifo Empty */
+		/* Disable the Transmit interrupt if buffer is empty */
+		USART_ITConfig(USART3, USART_IT_TXE, DISABLE);    
+#ifdef USART3_LIN_BUS
+		usart3_idle_tick = 0; /* Reset idle tick to prevent TX racing */
+#endif    	
     }
 
 #ifdef USART3_LIN_BUS
 	if(USART_GetITStatus(USART3, USART_IT_LBD) != RESET) {
 		USART_ClearITPendingBit(USART3, USART_IT_LBD);     //清break中断位
-		//linBusBusy = true;
 	}
 #endif
 }

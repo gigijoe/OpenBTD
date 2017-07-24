@@ -128,29 +128,809 @@ h.....
 
 @ Options:
 
-35 00 normal display
+00 normal display
 
-37 01 Display text between two red files
+01 Display text between two red files
 
-37 03 Display text between two red flashing files
+03 Display text between two red flashing files
 
-37 04 Display the gong and text between two red flashing files
+04 Display the gong and text between two red flashing files
 
-37 05 Displaying the gong and text
+05 Displaying the gong and text
 
-37 08 Gong I (without displaying a message)
+08 Gong I (without displaying a message)
 
-37 10 Gong II (without displaying a message)
+10 Gong II (without displaying a message)
 
 @ Note: 
 
 All characters that can be represented in the text line must always be sent, as otherwise the "old" characters are not overwritten. Thus the message length is always "17H".
 
+#
+# MID Text Display
+#
+
+/* Title Field */
+<68 12 e7> 23 <State or Target> 20 <Text> <XOR>
+
+@ Text
+
+07 Clear buffer and go to the first position
+08 Go to the first position only
+
+<68 0d e7> 24 <State or Target> 00 35 2d 30 37 20 20 20 20 | 79 
+
+/* Bottom Field */
+<68 17 e7> 21 <State or Target> 00 <Command> <Text> <XOR>
+
+@ States
+
+40 Radio
+c0 CD
+80 Tape
+60 Tone
+
+@ Target
+
+00 Radio
+01 BC
+02 Clock
+04 ???
+05 Phone 
+
+@ Command
+
+Command & 0x0f target field
+Command & 0x60 Start from first field and end up at last field
+Command & 0x40 target field only
+Command * 0x20 Start from target field and end up at last field
+
+@ Text
+
+05 Go to next field
+06 Go to next next field
+2a This is active field
 
 
 
 
 
+IBus Inspector v0.0.1
+Author : Steve Chang
+26th October 2016
+IBus\> 
+Radio Power On
+
+IBus\> 
+IBus\> 
+IBus\> 
+IBus\> recv
+IBus\> 
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+......"
+80 05 bf | 18 00 00 | 22 
+
+c8 : TEL Telephone
+7f : NAVE Navigation (Europe)
+.........
+c8 07 7f | a9 0b 00 00 04 | 16 
+
+d0 : LCM Light control module
+bf : GLO Global, broadcast address
+...[....3
+d0 07 bf | 5b 00 00 00 00 | 33 
+
+c8 : TEL Telephone
+e7 : ANZV OBC TextBar
+...+..
+c8 04 e7 | 2b 03 | 03 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+......"
+80 05 bf | 18 00 00 | 22 
+
+c0 : MID Multi-Information Display Buttons
+ff : LOC local
+...  ...
+c0 06 ff | 20 20 b2 00 | 8b 
+
+c0 : MID Multi-Information Display Buttons
+80 : IKE Instrument Control Electronics
+....B
+c0 03 80 | 01 | 42 
+
+80 : IKE Instrument Control Electronics
+c0 : MID Multi-Information Display Buttons
+...#. . 0:51  .e
+80 0e c0 | 23 01 20 03 20 30 3a 35 31 20 20 04 | 65 
+
+6a : DSP Digital Sound Processor
+ff : LOC local
+j.....
+6a 04 ff | 02 01 | 92 
+
+18 : CDC CD-Player
+68 : RAD Radio
+..h..v
+18 04 68 | 02 00 | 76 
+
+18 : CDC CD-Player
+68 : RAD Radio
+..h9...?...|
+18 0a 68 | 39 00 02 00 3f 00 05 07 | 7c 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+.....9
+80 04 bf | 02 00 | 39 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+.....)
+80 04 bf | 11 03 | 29 
+
+80 : IKE Instrument Control Electronics
+e7 : ANZV OBC TextBar
+...*..H
+80 05 e7 | 2a 00 00 | 48 
+
+68 : RAD Radio
+ff : LOC local
+h..6..
+68 04 ff | 36 af | 0a 
+
+68 : RAD Radio
+18 : CDC CD-Player
+h..8..Q
+68 05 18 | 38 03 1f | 51 
+
+18 : CDC CD-Player
+68 : RAD Radio
+..h9...?...|
+18 0a 68 | 39 00 02 00 3f 00 05 07 | 7c 
+
+18 : CDC CD-Player
+68 : RAD Radio
+..h9...?...w
+18 0a 68 | 39 00 09 00 3f 00 05 07 | 77 
+
+68 : RAD Radio
+e7 : ANZV OBC TextBar
+h..#. CD .5-07    .a
+68 12 e7 | 23 c0 20 43 44 20 03 35 2d 30 37 20 20 20 20 04 | 61 
+
+68 : RAD Radio
+ff : LOC local
+h..61.
+68 04 ff | 36 31 | 94 
+
+68 : RAD Radio
+ff : LOC local
+h..6j.
+68 04 ff | 36 6a | cf 
+
+68 : RAD Radio
+ff : LOC local
+h..6.e
+68 04 ff | 36 c0 | 65 
+
+68 : RAD Radio
+ff : LOC local
+h..6.%
+68 04 ff | 36 80 | 25 
+
+68 : RAD Radio
+ff : LOC local
+h..6P.
+68 04 ff | 36 50 | f5 
+
+68 : RAD Radio
+ff : LOC local
+h..6.G
+68 04 ff | 36 e2 | 47 
+
+68 : RAD Radio
+ff : LOC local
+h..6..
+68 04 ff | 36 a0 | 05 
+
+68 : RAD Radio
+ff : LOC local
+h..61.
+68 04 ff | 36 31 | 94 
+
+68 : RAD Radio
+ff : LOC local
+h..6j.
+68 04 ff | 36 6a | cf 
+
+68 : RAD Radio
+ff : LOC local
+h..6.e
+68 04 ff | 36 c0 | 65 
+
+68 : RAD Radio
+ff : LOC local
+h..6.%
+68 04 ff | 36 80 | 25 
+
+68 : RAD Radio
+ff : LOC local
+h..6P.
+68 04 ff | 36 50 | f5 
+
+68 : RAD Radio
+ff : LOC local
+h..6.G
+68 04 ff | 36 e2 | 47 
+
+68 : RAD Radio
+e7 : ANZV OBC TextBar
+h..$..5-07    y
+68 0d e7 | 24 c0 00 35 2d 30 37 20 20 20 20 | 79 
+
+68 : RAD Radio
+e7 : ANZV OBC TextBar
+h..!..` 1.2 . 3.4 . 5.6 .
+68 17 e7 | 21 c0 00 60 20 31 05 32 20 05 20 33 05 34 20 05 20 35 05 36 20 | 1b 
+
+68 : RAD Radio
+e7 : ANZV OBC TextBar
+h..!...FM.AM.RND. TP.SC.TAPE.
+68 1b e7 | 21 c0 00 06 46 4d 05 41 4d 05 52 4e 44 05 20 54 50 05 53 43 05 54 41 50 45 | 1d 
+
+c0 : MID Multi-Information Display Buttons
+68 : RAD Radio
+..h"..
+c0 04 68 | 22 01 | 8f 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j2!.
+68 04 6a | 32 21 | 15 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j2 .
+68 04 6a | 32 20 | 14 
+
+ea : Unknown
+67 : Unknown
+..g...
+ea 04 67 | 02 01 | 8a 
+
+ea : Unknown
+80 : IKE Instrument Control Electronics
+....}
+ea 03 80 | 14 | 7d 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+.......B.
+80 07 bf | 15 01 04 80 42 | ea 
+
+ea : Unknown
+6a : DSP Digital Sound Processor
+..j4(.
+ea 04 6a | 34 28 | 98 
+
+6a : DSP Digital Sound Processor
+ea : Unknown
+j..5..'.)Ji...u
+6a 0d ea | 35 06 07 27 08 29 4a 69 88 a7 c6 | 75 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j2.%
+68 04 6a | 32 11 | 25 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j2.%
+68 04 6a | 32 11 | 25 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j2!.
+68 04 6a | 32 21 | 15 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j2!.
+68 04 6a | 32 21 | 15 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j2!.
+68 04 6a | 32 21 | 15 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j2!.
+68 04 6a | 32 21 | 15 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j2!.
+68 04 6a | 32 21 | 15 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j2!.
+68 04 6a | 32 21 | 15 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j2!.
+68 04 6a | 32 21 | 15 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j2.%
+68 04 6a | 32 11 | 25 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j2!.
+68 04 6a | 32 21 | 15 
+
+d0 : LCM Light control module
+bf : GLO Global, broadcast address
+...[....3
+d0 07 bf | 5b 00 00 00 00 | 33 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j21.
+68 04 6a | 32 31 | 05 
+
+68 : RAD Radio
+6a : DSP Digital Sound Processor
+h.j21.
+68 04 6a | 32 31 | 05 
+
+50 : MFL Multi Functional Steering Wheel Buttons
+b0 : SES Speed recognition system
+P....
+50 03 b0 | 01 | e2 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+......"
+80 05 bf | 18 00 00 | 22 
+
+18 : CDC CD-Player
+68 : RAD Radio
+..h9...?...u
+18 0a 68 | 39 02 09 00 3f 00 05 07 | 75 
+
+c0 : MID Multi-Information Display Buttons
+68 : RAD Radio
+..h..
+c0 03 68 | 01 | aa 
+
+Radio Power Off
+
+68 : RAD Radio
+c0 : MID Multi-Information Display Buttons
+h.....
+68 04 c0 | 02 00 | ae 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+......"
+80 05 bf | 18 00 00 | 22 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+.....K.t
+80 06 bf | 19 1f 4b 00 | 74 
+
+68 : RAD Radio
+18 : CDC CD-Player
+h...r
+68 03 18 | 01 | 72 
+
+18 : CDC CD-Player
+68 : RAD Radio
+..h..v
+18 04 68 | 02 00 | 76 
+
+d0 : LCM Light control module
+bf : GLO Global, broadcast address
+...[....3
+d0 07 bf | 5b 00 00 00 00 | 33 
+
+c0 : MID Multi-Information Display Buttons
+c8 : TEL Telephone
+.....
+c0 03 c8 | 01 | 0a 
+
+c8 : TEL Telephone
+ff : LOC local
+....0.
+c8 04 ff | 02 30 | 01 
+
+18 : CDC CD-Player
+68 : RAD Radio
+..h..v
+18 04 68 | 02 00 | 76 
+
+18 : CDC CD-Player
+68 : RAD Radio
+..h9...?...u
+18 0a 68 | 39 02 09 00 3f 00 05 07 | 75 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+......"
+80 05 bf | 18 00 00 | 22 
+
+d0 : LCM Light control module
+bf : GLO Global, broadcast address
+...[....3
+d0 07 bf | 5b 00 00 00 00 | 33 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+......"
+80 05 bf | 18 00 00 | 22 
+
+c0 : MID Multi-Information Display Buttons
+68 : RAD Radio
+..h1...T
+c0 06 68 | 31 c0 00 0b | 54 
+
+68 : RAD Radio
+ff : LOC local
+h..6..
+68 04 ff | 36 a1 | 04 
+
+68 : RAD Radio
+e7 : ANZV OBC TextBar
+h..#. TAPE .1      ..
+68 13 e7 | 23 80 20 54 41 50 45 20 03 31 20 20 20 20 20 20 04 | 09 
+
+68 : RAD Radio
+e7 : ANZV OBC TextBar
+h..!..`.SIDE. B .. C C
+68 14 e7 | 21 80 00 60 06 53 49 44 45 06 20 42 20 cd ce 20 43 20 | 43 
+
+68 : RAD Radio
+e7 : ANZV OBC TextBar
+h..!...FM.AM. . TP.CD8
+68 14 e7 | 21 80 00 06 46 4d 05 41 4d 05 20 05 20 54 50 05 43 44 | 38 
+
+68 : RAD Radio
+18 : CDC CD-Player
+h..8.-a
+68 05 18 | 38 01 2d | 61 
+
+18 : CDC CD-Player
+68 : RAD Radio
+..h9...?...~
+18 0a 68 | 39 02 02 00 3f 00 05 07 | 7e 
+
+c0 : MID Multi-Information Display Buttons
+68 : RAD Radio
+..h"..
+c0 04 68 | 22 01 | 8f 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+......"
+80 05 bf | 18 00 00 | 22 
+
+c0 : MID Multi-Information Display Buttons
+80 : IKE Instrument Control Electronics
+....B
+c0 03 80 | 01 | 42 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+.....9
+80 04 bf | 02 00 | 39 
+
+c0 : MID Multi-Information Display Buttons
+68 : RAD Radio
+..h1..K.
+c0 06 68 | 31 c0 00 4b | 14 
+
+d0 : LCM Light control module
+bf : GLO Global, broadcast address
+...[....3
+d0 07 bf | 5b 00 00 00 00 | 33 
+
+18 : CDC CD-Player
+68 : RAD Radio
+..h9...?...|
+18 0a 68 | 39 00 02 00 3f 00 05 07 | 7c 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+......"
+80 05 bf | 18 00 00 | 22 
+
+c0 : MID Multi-Information Display Buttons
+68 : RAD Radio
+..h..
+c0 03 68 | 01 | aa 
+
+Radio Power On
+
+68 : RAD Radio
+c0 : MID Multi-Information Display Buttons
+h.....
+68 04 c0 | 02 00 | ae 
+
+d0 : LCM Light control module
+bf : GLO Global, broadcast address
+...[....3
+d0 07 bf | 5b 00 00 00 00 | 33 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+......"
+80 05 bf | 18 00 00 | 22 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+.....K.t
+80 06 bf | 19 1f 4b 00 | 74 
+
+68 : RAD Radio
+18 : CDC CD-Player
+h...r
+68 03 18 | 01 | 72 
+
+18 : CDC CD-Player
+68 : RAD Radio
+..h..v
+18 04 68 | 02 00 | 76 
+
+c0 : MID Multi-Information Display Buttons
+c8 : TEL Telephone
+.....
+c0 03 c8 | 01 | 0a 
+
+c8 : TEL Telephone
+ff : LOC local
+....0.
+c8 04 ff | 02 30 | 01 
+
+18 : CDC CD-Player
+68 : RAD Radio
+..h..v
+18 04 68 | 02 00 | 76 
+
+18 : CDC CD-Player
+68 : RAD Radio
+..h9...?...|
+18 0a 68 | 39 00 02 00 3f 00 05 07 | 7c 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+......"
+80 05 bf | 18 00 00 | 22 
+
+d0 : LCM Light control module
+bf : GLO Global, broadcast address
+...[....3
+d0 07 bf | 5b 00 00 00 00 | 33 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+......"
+80 05 bf | 18 00 00 | 22 
+
+d0 : LCM Light control module
+bf : GLO Global, broadcast address
+...[....3
+d0 07 bf | 5b 00 00 00 00 | 33 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+......"
+80 05 bf | 18 00 00 | 22 
+
+c0 : MID Multi-Information Display Buttons
+80 : IKE Instrument Control Electronics
+....B
+c0 03 80 | 01 | 42 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+.....9
+80 04 bf | 02 00 | 39 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+......"
+80 05 bf | 18 00 00 | 22 
+
+c0 : MID Multi-Information Display Buttons
+68 : RAD Radio
+..h..
+c0 03 68 | 01 | aa 
+
+Radio Power Off
+
+68 : RAD Radio
+c0 : MID Multi-Information Display Buttons
+h.....
+68 04 c0 | 02 00 | ae 
+
+d0 : LCM Light control module
+bf : GLO Global, broadcast address
+...[....3
+d0 07 bf | 5b 00 00 00 00 | 33 
+
+80 : IKE Instrument Control Electronics
+e7 : ANZV OBC TextBar
+...$.. 0:52  c
+80 0c e7 | 24 01 00 20 30 3a 35 32 20 20 | 63 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+......"
+80 05 bf | 18 00 00 | 22 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+.....K.t
+80 06 bf | 19 1f 4b 00 | 74 
+
+c0 : MID Multi-Information Display Buttons
+c8 : TEL Telephone
+.....
+c0 03 c8 | 01 | 0a 
+
+c8 : TEL Telephone
+ff : LOC local
+....0.
+c8 04 ff | 02 30 | 01 
+
+18 : CDC CD-Player
+68 : RAD Radio
+..h..v
+18 04 68 | 02 00 | 76 
+
+18 : CDC CD-Player
+68 : RAD Radio
+..h9...?...|
+18 0a 68 | 39 00 02 00 3f 00 05 07 | 7c 
+
+68 : RAD Radio
+18 : CDC CD-Player
+h...r
+68 03 18 | 01 | 72 
+
+18 : CDC CD-Player
+68 : RAD Radio
+..h..v
+18 04 68 | 02 00 | 76 
+
+d0 : LCM Light control module
+bf : GLO Global, broadcast address
+...[....3
+d0 07 bf | 5b 00 00 00 00 | 33 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+......"
+80 05 bf | 18 00 00 | 22 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+......"
+80 05 bf | 18 00 00 | 22 
+
+d0 : LCM Light control module
+bf : GLO Global, broadcast address
+...[....3
+d0 07 bf | 5b 00 00 00 00 | 33 
+
+c0 : MID Multi-Information Display Buttons
+ff : LOC local
+...  ...
+c0 06 ff | 20 20 b2 00 | 8b 
+
+68 : RAD Radio
+e7 : ANZV OBC TextBar
+h..#. .
+68 05 e7 | 23 00 20 | 89 
+
+68 : RAD Radio
+e7 : ANZV OBC TextBar
+h..!.. .
+68 06 e7 | 21 00 00 20 | 88 
+
+68 : RAD Radio
+ff : LOC local
+h..6..
+68 04 ff | 36 af | 0a 
+
+c0 : MID Multi-Information Display Buttons
+68 : RAD Radio
+..h"..
+c0 04 68 | 22 00 | 8e 
+
+80 : IKE Instrument Control Electronics
+c0 : MID Multi-Information Display Buttons
+...#. . 0:52  .f
+80 0e c0 | 23 01 20 03 20 30 3a 35 32 20 20 04 | 66 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+......"
+80 05 bf | 18 00 00 | 22 
+
+c0 : MID Multi-Information Display Buttons
+80 : IKE Instrument Control Electronics
+....B
+c0 03 80 | 01 | 42 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+.....9
+80 04 bf | 02 00 | 39 
+
+d0 : LCM Light control module
+bf : GLO Global, broadcast address
+...[....3
+d0 07 bf | 5b 00 00 00 00 | 33 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+......"
+80 05 bf | 18 00 00 | 22 
+
+c0 : MID Multi-Information Display Buttons
+68 : RAD Radio
+..h..
+c0 03 68 | 01 | aa 
+
+Radio Power On
+
+68 : RAD Radio
+c0 : MID Multi-Information Display Buttons
+h.....
+68 04 c0 | 02 00 | ae 
+
+80 : IKE Instrument Control Electronics                     +-----------------------+
+bf : GLO Global, broadcast address                          |                       |
+......"                                                     |  無法開啟 /dev/ttyUSB0!   |
+80 05 bf | 18 00 00 | 22                                    |                       |
+                                                            +-----------------------+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+.....L.s
+80 06 bf | 19 1f 4c 00 | 73 
+
+d0 : LCM Light control module
+bf : GLO Global, broadcast address
+...[....3
+d0 07 bf | 5b 00 00 00 00 | 33 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+............
+80 0a bf | 13 02 b0 00 00 00 00 17 | 83 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+.....+
+80 04 bf | 11 01 | 2b 
+
+80 : IKE Instrument Control Electronics
+bf : GLO Global, broadcast address
+............
+80 0a bf | 13 00 b0 00 00 00 00 17 | 81 
+
+80 : IKE Instrument Control E
+   
 
 
 

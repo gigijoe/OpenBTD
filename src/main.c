@@ -21,7 +21,6 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f10x.h"
-//#include "stm32_eval.h"
 #include <string.h>
 
 #include "bool.h"
@@ -29,6 +28,7 @@
 #include "usart.h"
 #include "adc.h"
 
+#include "ibus.h"
 /*
 *
 */
@@ -38,10 +38,7 @@ static char *BatteryVoltage(void)
   static char vs[5];
   float v = (float) ADC_ConvertedValue / 4096 * 3.3 * (10.0 / 2.15);
   snprintf(vs, 5, "%f", v);
-/*
-  Usart2_Puts(vs);
-  Usart2_Puts("\r\n");
-*/
+
   return vs;
 }
 
@@ -477,19 +474,40 @@ uint8_t IBus_ValidDestination(uint8_t id)
 void IBus_RedrawRadioScreen(char *text)
 {
 #define MAX_RADIO_SCREEN_LENGTH 11
+  uint8_t d[] = { 0x23, 0x00, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x04 };
+
+  if(text == 0 || strlen(text) <= 0) {
+    IBus_Send2(0x68, 0xe7, d, 3+MAX_RADIO_SCREEN_LENGTH+1);
+    return;
+  }
+
+  uint8_t len = strlen(text);
+
+  if(len > MAX_RADIO_SCREEN_LENGTH)
+    len = MAX_RADIO_SCREEN_LENGTH;
+
+  memcpy(&d[3], text, len);
+  IBus_Send2(0x68, 0xe7, d, 3+MAX_RADIO_SCREEN_LENGTH+1); /* Display on ANZV OBC TextBar */
+}
+
+void IBus_RedrawBcScreen(char *text)
+{
+//#define MAX_BC_SCREEN_LENGTH 24
+#define MAX_BC_SCREEN_LENGTH 20
 
   if(text == 0 || strlen(text) <= 0)
     return;
 
   uint8_t len = strlen(text);
 
-  if(len > MAX_RADIO_SCREEN_LENGTH)
-    len = MAX_RADIO_SCREEN_LENGTH;
-  //uint8_t d[] = { 0x23, 0x40, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
-  uint8_t d[] = { 0x23, 0x80, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
+  if(len > MAX_BC_SCREEN_LENGTH)
+    len = MAX_BC_SCREEN_LENGTH;
 
+//  uint8_t d[] = { 0x23, 0x01, 0x20, 0x00, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
+  uint8_t d[] = { 0x23, 0x01, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x04 };
   memcpy(&d[3], text, len);
-  IBus_Send2(0x68, 0xe7, d, 3+MAX_RADIO_SCREEN_LENGTH); /* Display on ANZV OBC TextBar */
+
+  IBus_Send2(0x80, 0xe7, d, 3+MAX_BC_SCREEN_LENGTH+1); /* Display "12345678901234567890" on IKE - Text Screen (20) */
 }
 
 void IBus_RedrawIkeScreen(char *text)
@@ -504,12 +522,12 @@ void IBus_RedrawIkeScreen(char *text)
   if(len > MAX_IKE_SCREEN_LENGTH)
     len = MAX_IKE_SCREEN_LENGTH;
 
-  uint8_t d[] = { 0x23, 0x62, 0x30, 0x00, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
+  uint8_t d[] = { 0x23, 0x62, 0x30, 0x00, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x04 };
   uint8_t *p = &d[4];
   uint8_t frontPorch = (MAX_IKE_SCREEN_LENGTH - len) >> 1;
   memcpy(p + frontPorch, text, len);
 
-  IBus_Send2(0x68, 0x80, d, 25); /* Display "12345678901234567890" on IKE - Text Screen (20) */
+  IBus_Send2(0x68, 0x80, d, 4+MAX_IKE_SCREEN_LENGTH+1); /* Display "12345678901234567890" on IKE - Text Screen (20) */
 }
 
 /* SSM : System Status Monitor */
@@ -534,7 +552,7 @@ void Ssm_Update()
   if(ssm.enable == false)
     return;
 
-  uint8_t d[] = { 0x23, 0x80, 0x20, 0x58, 0x58, 0x58, 0x43, 0x20, 0x03, 0x20, 0x20, 0x20, 0x20, 0x20, 0x56, 0x20, 0x04 };
+  uint8_t d[] = { 0x23, 0x00, 0x20, 0x58, 0x58, 0x58, 0x43, 0x20, 0x03, 0x20, 0x20, 0x20, 0x20, 0x20, 0x56, 0x20, 0x04 };
   memcpy(&d[3], ssm.temperture, 3);
 
   char *v = BatteryVoltage();
@@ -587,7 +605,6 @@ void IBus_DecodeMfl(uint8_t *p)
   } else if(memcmp(BTN_VOLUME_UP, p, 6) == 0) {
   } else if(memcmp(BTN_VOLUME_DOWN, p, 6) == 0) {
   } else if(memcmp(BTN_RT_TELEPHONE, p, 6) == 0) {
-    IBus_RedrawIkeScreen("BMW E38 Individual");
   } else if(memcmp(BTN_TELEPHONE_PRESSED, p, 6) == 0) {
   } else if(memcmp(BTN_TELEPHONE_RELEASED, p, 6) == 0) {
 #if 0
@@ -598,32 +615,42 @@ void IBus_DecodeMfl(uint8_t *p)
     uint8_t d[] = { 0x21, 0x40, 0x00, 0x09, 0x05, 0x05, 0x4D, 0x50, 0x33 };
     IBus_Send2(0x68, 0xe7, d, 9); /* Display "MP3" on ANZV OBC TextBar - Radio Screen */
 #endif
-#if 0    
-    uint8_t d2[] = { 0x23, 0x04, 0x20, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30 };
-    IBus_Send2(0x80, 0xe7, d2, 23); /* Display "12345678901234567890" on ANZV OBC TextBar - BC Screen (20) --- Still on Radio screen ??? */    
+#if 0
+    uint8_t d2[] = { 0x23, 0x01, 0x20, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30 };
+    IBus_Send2(0x80, 0xe7, d2, 23); /* Display "12345678901234567890" on ANZV OBC TextBar - BC Screen (20) */    
 #endif
     ssm.enable = !ssm.enable;
 
     if(ssm.enable == false) {
-      IBus_RedrawRadioScreen("           ");
+      IBus_RedrawRadioScreen("");
+      delay_ms(100);
+      IBus_RedrawBcScreen("Disable Monitor");
 #if 0      
       uint8_t d1[] = { 0x23, 0x40, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
       IBus_Send2(0x68, 0xe7, d1, 14); /* Display on ANZV OBC TextBar */
 #endif      
+    } else {
+      IBus_RedrawIkeScreen("BMW E38 Individual");
+      delay_ms(100);
+      IBus_RedrawBcScreen("Enable Monitor");
+      delay_ms(100);
+      Ssm_Update();
     }
   }
 }
 
-const uint8_t BTN_RADIO_POWER[] = { 0x68, 0x04, 0xc0, 0x02, 0x00, 0xae };
+const uint8_t RADIO_POWER_OFF[] = { 0x68, 0x05, 0xe7, 0x23, 0x00, 0x20, 0x89 };
 
 void IBus_DecodeRad(uint8_t *p)
 {
-#if 0  
-  if(memcmp(BTN_RADIO_POWER, p, 6) == 0) {
-    ssm.radioPowerOn = !ssm.radioPowerOn;
-    Usart2_Printf("\r\nRadio Power %s\r\n", ssm.radioPowerOn ? "On" : "Off");   
+  if(memcmp(RADIO_POWER_OFF, p, 6) == 0)
+    ssm.radioPowerOn = false;
+  else if(p[2] == ANZV) {
+    if((p[3] == 0x21 || p[3] == 0x23) && (p[4] == 0x40 || p[4] == 0xc0 || p[4] == 0x80))
+      ssm.radioPowerOn = true;
   }
-#endif
+
+  Usart2_Printf("\r\nRadio Power %s\r\n", ssm.radioPowerOn ? "On" : "Off");
 }
 
 const uint8_t BTN_MID_TOKEN[] = { 0x31, 0x80, 0x00 };  
@@ -809,8 +836,6 @@ void Tim4_Enable(void)
   TIM_Cmd(TIM4, ENABLE);
 }
 
-volatile uint32_t usart3_idle_tick = 0;
-
 static uint32_t tim4Tick_1ms = 0;
 
 void Tim4_1ms(void)
@@ -856,6 +881,9 @@ void Tim4_1000ms(void)
   uint8_t d2[] = { 0x3b, 0x01 };
   IBus_Send2(0x50, 0x68, d2, 2);
 */
+  if(tim4Tick_1000ms == 2) /* Show log ONLY after 2 secs of power on */
+    IBus_RedrawIkeScreen("BMW E38 Individual");
+
   Ssm_Update();
 }
 
@@ -893,19 +921,19 @@ int main(void)
 
   Tim4_Init();
   Tim4_Enable();
-
+#ifdef NAVCODER
+  Usart2_Init(9600);
+#else  
   Usart2_Init(115200);
   Usart2_Puts("\r\nIBus Inspector v0.0.2");
   Usart2_Puts("\r\nAuthor : Steve Chang");
   Usart2_Puts("\r\n26th October 2017");
 
   Usart2_Puts("\r\nIBus\\> ");
-
+#endif
   Usart3_Init(9600);
 
   Ssm_Init();
-
-  IBus_RedrawIkeScreen("BMW E38 Individual");
 
   uint32_t tick_1ms = tim4Tick_1ms;
   uint32_t tick_10ms = tim4Tick_10ms;
@@ -920,6 +948,15 @@ int main(void)
      cycles to minimize more the infinite loop timing.
      This code needs to be compiled with high speed optimization option.  */
   for(;;) {
+#ifdef NAVCODER
+    int len = Usart3_Poll();
+    if(len > 0)
+      Usart2_Write(Usart3_Gets(), len);
+
+    len = Usart2_Poll();
+    if(len > 0)
+      Usart3_Write(Usart2_Gets(), len);
+#else
     if(tick_1ms != tim4Tick_1ms) {
       tick_1ms = tim4Tick_1ms;
       Tim4_1ms();
@@ -1032,10 +1069,17 @@ int main(void)
           Usart2_Write((uint8_t *)"| ", 2);
       }
       Usart2_Puts("\r\n");
-      Usart2_Printf("   %s --> %s\r\n", ibus_device_alias(p[0]), ibus_device_alias(p[2]));
-#endif      
-      
-    }    
+      Usart2_Printf(" %s --> %s : ", ibus_device_alias(p[0]), ibus_device_alias(p[2]));
+      for(i=0;i<len;i++) {
+        if(p[i] < 0x20 || p[i] > 0x7e)
+          Usart2_Write((uint8_t *)".", 1);
+        else
+          Usart2_Write((uint8_t *)&p[i], 1);
+      }
+      Usart2_Puts("\r\n");
+#endif          
+    }
+#endif
   }
 }
 
@@ -1077,8 +1121,12 @@ void TIM4_IRQHandler(void)
     if(tim4Tick % 1000 == 0)
       tim4Tick_1000ms++;
 
+#ifdef USART2_LIN_BUS
+    usart2_idle_tick++;
+#endif
+#ifdef USART3_LIN_BUS
     usart3_idle_tick++;
-
+#endif
     //
     // 清除 TIM4
     TIM_ClearITPendingBit(TIM4, /*TIM_IT_Update*/ TIM_FLAG_Update);

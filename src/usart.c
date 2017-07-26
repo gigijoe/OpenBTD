@@ -21,8 +21,6 @@
 
 static void Usart_Puts(USART_TypeDef* USARTx, char *string)
 {
-	USART_ITConfig(USARTx, USART_IT_TXE, ENABLE);
-
     while(*string){
         /* 傳送訊息至 USARTx */
         USART_SendData(USARTx, (uint16_t) *string++);
@@ -34,8 +32,6 @@ static void Usart_Puts(USART_TypeDef* USARTx, char *string)
 
 static void Usart_Write(USART_TypeDef* USARTx, uint8_t *data, uint8_t len)
 {
-	USART_ITConfig(USARTx, USART_IT_TXE, ENABLE);
-
     while(len){
         /* 傳送訊息至 USART2 */
         USART_SendData(USARTx, (uint16_t) *data++);
@@ -168,7 +164,7 @@ void Usart2_Init(uint32_t baudrate)
 	 * to jump to the USART2_IRQHandler() function
 	 * if the USART1 receive interrupt occurs
 	 */
-
+	USART_ClearFlag(USART2, USART_FLAG_TC); /* 清发送外城标志，Transmission Complete flag */
 	USART_ITConfig(USART2, USART_IT_IDLE, ENABLE);
 
 #ifdef USART_TX_DMA
@@ -213,6 +209,9 @@ void Usart2_Init(uint32_t baudrate)
 	DMA_InitStructure.DMA_Priority = DMA_Priority_High;
 	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
 	DMA_Init(DMA1_Channel7, &DMA_InitStructure);
+
+	USART_ITConfig(USART2, USART_IT_TC, ENABLE);// 使能串口发送完成中断
+
 	/* Enable the USART Tx DMA request */
 	USART_DMACmd(USART2, USART_DMAReq_Tx, ENABLE);
 	/* Enable DMA Stream Transfer Complete interrupt */
@@ -277,7 +276,8 @@ void Usart2_Puts(char *string)
 	if(len > MAX_TX_LEN)
 		len = MAX_TX_LEN;	
 
-	while (USART_GetFlagStatus(USART2, USART_FLAG_TC) == RESET);
+	//while(USART_GetFlagStatus(USART2, USART_FLAG_TC) == RESET);
+	while(DMA_GetCurrDataCounter(DMA1_Channel7)); // 检查DMA发送通道内是否还有数据
 
 	DMA_Cmd(DMA1_Channel7, DISABLE);
 	memcpy(usart2_tx_data, string, len); 
@@ -312,7 +312,8 @@ void Usart2_Write(uint8_t *data, uint8_t len)
 	if(len > MAX_TX_LEN)
 		len = MAX_TX_LEN;
 	
-	while (USART_GetFlagStatus(USART2, USART_FLAG_TC) == RESET);
+	//while(USART_GetFlagStatus(USART2, USART_FLAG_TC) == RESET);
+	while(DMA_GetCurrDataCounter(DMA1_Channel7)); // 检查DMA发送通道内是否还有数据
 
 	DMA_Cmd(DMA1_Channel7, DISABLE);
 	memcpy(usart2_tx_data, data, len); 
@@ -364,9 +365,12 @@ void USART2_IRQHandler(void)
         DMA_Cmd(DMA1_Channel6, ENABLE);  
     }
 
-    if(USART_GetITStatus(USART2, USART_IT_TXE) != RESET) { /* TX fifo Empty */
-		/* Disable the Transmit interrupt if buffer is empty */
-		USART_ITConfig(USART2, USART_IT_TXE, DISABLE);    
+    if(USART_GetITStatus(USART2, USART_IT_TC) != RESET) { /* Transmition Complete */
+		USART_ClearFlag(USART2, USART_FLAG_TC);        //清除TC位，否则会重复进入中断
+#if USART_TX_DMA
+		DMA_Cmd(DMA1_Channel7, DISABLE); // 关闭DMA
+    	DMA1_Channel7->CNDTR=0;          // 清除数据长度
+#endif
 #ifdef USART2_LIN_BUS
 		usart2_idle_tick = 0; /* Reset idle tick to prevent TX racing */
 #endif    	
@@ -437,6 +441,7 @@ void Usart3_Init(uint32_t baudrate)
 	 * to jump to the USART2_IRQHandler() function
 	 * if the USART1 receive interrupt occurs
 	 */
+	USART_ClearFlag(USART3, USART_FLAG_TC); /* 清发送外城标志，Transmission Complete flag */
 	USART_ITConfig(USART3, USART_IT_IDLE, ENABLE);
 
 #ifdef USART_TX_DMA
@@ -481,6 +486,9 @@ void Usart3_Init(uint32_t baudrate)
 	DMA_InitStructure.DMA_Priority = DMA_Priority_High;
 	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
 	DMA_Init(DMA1_Channel2, &DMA_InitStructure);
+
+	USART_ITConfig(USART3, USART_IT_TC, ENABLE);
+
 	/* Enable the USART Tx DMA request */
 	USART_DMACmd(USART3, USART_DMAReq_Tx, ENABLE);
 	/* Enable DMA Stream Transfer Complete interrupt */
@@ -546,7 +554,8 @@ void Usart3_Puts(char *string)
 	if(len > MAX_TX_LEN)
 		len = MAX_TX_LEN;
 
-	while (USART_GetFlagStatus(USART3, USART_FLAG_TC) == RESET);
+	//while(USART_GetFlagStatus(USART3, USART_FLAG_TC) == RESET);
+	while(DMA_GetCurrDataCounter(DMA1_Channel2)); // 检查DMA发送通道内是否还有数据
 
 	DMA_Cmd(DMA1_Channel2, DISABLE);
 	memcpy(usart3_tx_data, string, len); 
@@ -581,7 +590,8 @@ void Usart3_Write(uint8_t *data, uint8_t len)
 	if(len > MAX_TX_LEN)
 		len = MAX_TX_LEN;
 
-	while (USART_GetFlagStatus(USART3, USART_FLAG_TC) == RESET);
+	//while(USART_GetFlagStatus(USART3, USART_FLAG_TC) == RESET);
+	while(DMA_GetCurrDataCounter(DMA1_Channel2)); // 检查DMA发送通道内是否还有数据
 
 	DMA_Cmd(DMA1_Channel2, DISABLE);
 	memcpy(usart3_tx_data, data, len); 
@@ -636,9 +646,12 @@ void USART3_IRQHandler(void)
         usart3_idle_tick = 0;
     }
 
-    if(USART_GetITStatus(USART3, USART_IT_TXE) != RESET) { /* TX fifo Empty */
-		/* Disable the Transmit interrupt if buffer is empty */
-		USART_ITConfig(USART3, USART_IT_TXE, DISABLE);    
+    if(USART_GetITStatus(USART3, USART_IT_TC) != RESET) { /* Transmition Complete */
+    	USART_ClearFlag(USART3, USART_FLAG_TC);        //清除TC位，否则会重复进入中断
+#if USART_TX_DMA
+    	DMA_Cmd(DMA1_Channel2, DISABLE); // 关闭DMA
+    	DMA1_Channel2->CNDTR=0;          // 清除数据长度
+#endif
 #ifdef USART3_LIN_BUS
 		usart3_idle_tick = 0; /* Reset idle tick to prevent TX racing */
 #endif    	

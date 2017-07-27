@@ -113,6 +113,8 @@ typedef enum { false = 0, true} bool_t;
 static char usart2_tx_data[MAX_TX_LEN];
 #endif
 
+volatile bool_t usart2_tx_busy = false;
+
 #ifdef USART2_LIN_BUS
 volatile uint32_t usart2_idle_tick = 0;
 #endif
@@ -271,6 +273,8 @@ void DMA1_Channel6_IRQHandler(void)
 
 void Usart2_Puts(char *string) 
 {
+	while(usart2_tx_busy);
+	usart2_tx_busy = true;
 #if USART_TX_DMA
 	uint16_t len = strlen(string);  
 	if(len > MAX_TX_LEN)
@@ -301,6 +305,8 @@ void Usart2_Printf(const char *fmt, ...)
 
 void Usart2_Write(uint8_t *data, uint8_t len)
 {
+	while(usart2_tx_busy);
+	usart2_tx_busy = true;
 #ifdef USART2_LIN_BUS
 	while(usart2_idle_tick < LIN_BUS_IDLE_TICK);
 
@@ -373,7 +379,8 @@ void USART2_IRQHandler(void)
 #endif
 #ifdef USART2_LIN_BUS
 		usart2_idle_tick = 0; /* Reset idle tick to prevent TX racing */
-#endif    	
+#endif
+		usart2_tx_busy = false;    	
     }
 
 #ifdef USART2_LIN_BUS
@@ -390,6 +397,8 @@ void USART2_IRQHandler(void)
 #if USART_TX_DMA
 static char usart3_tx_data[MAX_TX_LEN];
 #endif
+
+volatile bool_t usart3_tx_busy = false;
 
 #ifdef USART3_LIN_BUS
 volatile uint32_t usart3_idle_tick = 0;
@@ -549,6 +558,8 @@ void DMA1_Channel3_IRQHandler(void)
 
 void Usart3_Puts(char *string) 
 {
+	while(usart3_tx_busy);
+	usart3_tx_busy = true;
 #if USART_TX_DMA
 	uint16_t len = strlen(string);  
 	if(len > MAX_TX_LEN)
@@ -579,6 +590,8 @@ void Usart3_Printf(const char *fmt, ...)
 
 void Usart3_Write(uint8_t *data, uint8_t len)
 {
+	while(usart3_tx_busy);
+	usart3_tx_busy = true;
 #ifdef USART3_LIN_BUS
 	while(usart3_idle_tick < LIN_BUS_IDLE_TICK);
 
@@ -654,7 +667,8 @@ void USART3_IRQHandler(void)
 #endif
 #ifdef USART3_LIN_BUS
 		usart3_idle_tick = 0; /* Reset idle tick to prevent TX racing */
-#endif    	
+#endif
+    	usart3_tx_busy = false;
     }
 
 #ifdef USART3_LIN_BUS

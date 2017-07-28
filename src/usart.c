@@ -336,7 +336,7 @@ void Usart2_Write(uint8_t *data, uint8_t len)
 	if(len > MAX_TX_LEN)
 		len = MAX_TX_LEN;
 	
-	//while(USART_GetFlagStatus(USART2, USART_FLAG_TC) == RESET);
+	while(USART_GetFlagStatus(USART2, USART_FLAG_TC) == RESET);
 	//while(DMA_GetCurrDataCounter(DMA1_Channel7)); // 检查DMA发送通道内是否还有数据
 
 	DMA_Cmd(DMA1_Channel7, DISABLE);

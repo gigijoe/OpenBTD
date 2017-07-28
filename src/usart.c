@@ -110,10 +110,9 @@ typedef enum { false = 0, true} bool_t;
 */
 
 #if USART_TX_DMA
+volatile bool_t usart2_tx_busy = false;
 static char usart2_tx_data[MAX_TX_LEN];
 #endif
-
-volatile bool_t usart2_tx_busy = false;
 
 #ifdef USART2_LIN_BUS
 volatile uint32_t usart2_idle_tick = 0;
@@ -166,24 +165,7 @@ void Usart2_Init(uint32_t baudrate)
 	 * to jump to the USART2_IRQHandler() function
 	 * if the USART1 receive interrupt occurs
 	 */
-	USART_ClearFlag(USART2, USART_FLAG_TC); /* 清发送外城标志，Transmission Complete flag */
 	USART_ITConfig(USART2, USART_IT_IDLE, ENABLE);
-
-#ifdef USART_TX_DMA
-	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
-	/* Enable USART2 DMA TX Finish Interrupt */
-  	NVIC_InitStructure.NVIC_IRQChannel = DMA1_Channel7_IRQn;
-  	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
-  	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
-  	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-  	NVIC_Init(&NVIC_InitStructure);
-#endif
-
-	NVIC_InitStructure.NVIC_IRQChannel = USART2_IRQn;		 // we want to configure the USART1 interrupts
-	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;// this sets the priority group of the USART1 interrupts
-	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;		 // this sets the subpriority inside the group
-	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;			 // the USART1 interrupts are globally enabled
-	NVIC_Init(&NVIC_InitStructure);							 // the properties are passed to the NVIC_Init function which takes care of the low level stuff	
 
 #ifdef USART2_LIN_BUS
 	USART_LINBreakDetectLengthConfig(USART2, USART_LINBreakDetectLength_11b);
@@ -192,37 +174,10 @@ void Usart2_Init(uint32_t baudrate)
 #endif
 
 	USART_Cmd(USART2, ENABLE); // enable USART2
+	USART_ClearFlag(USART2, USART_FLAG_TC); /* 清发送外城标志，Transmission Complete flag */
 
 	DMA_InitTypeDef  DMA_InitStructure;
 
-#ifdef USART_TX_DMA
-	/* DMA1 clock enable */
-	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
-	DMA_DeInit(DMA1_Channel7);
-	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST; // Transmit
-	DMA_InitStructure.DMA_MemoryBaseAddr = (uint32_t)usart2_tx_data;
-	DMA_InitStructure.DMA_BufferSize = MAX_TX_LEN;
-	DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t)&USART2->DR;
-	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
-	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
-	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
-	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
-	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
-	DMA_InitStructure.DMA_Priority = DMA_Priority_High;
-	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
-	DMA_Init(DMA1_Channel7, &DMA_InitStructure);
-
-	USART_ITConfig(USART2, USART_IT_TC, ENABLE);// 使能串口发送完成中断
-
-	/* Enable the USART Tx DMA request */
-	USART_DMACmd(USART2, USART_DMAReq_Tx, ENABLE);
-	/* Enable DMA Stream Transfer Complete interrupt */
-	DMA_ITConfig(DMA1_Channel7, DMA_IT_TC, ENABLE);
-	/* Disable the DMA Tx Stream */
-	DMA_Cmd(DMA1_Channel7, DISABLE);
-	/* Enable the USART1 Tx DMA Interrupt */
-	NVIC_EnableIRQ(DMA1_Channel7_IRQn);
-#endif
 	/* DMA1 clock enable */
 	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
       
@@ -247,46 +202,106 @@ void Usart2_Init(uint32_t baudrate)
 	DMA_Cmd(DMA1_Channel6, ENABLE);
 	/* Enable the USART1 Rx DMA Interrupt */
 	NVIC_EnableIRQ(DMA1_Channel6_IRQn);	
+#ifdef USART_TX_DMA
+	/* DMA1 clock enable */
+	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
+	DMA_DeInit(DMA1_Channel7);
+	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST; // Transmit
+	DMA_InitStructure.DMA_MemoryBaseAddr = (uint32_t)usart2_tx_data;
+	DMA_InitStructure.DMA_BufferSize = MAX_TX_LEN;
+	DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t)&USART2->DR;
+	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
+	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
+	DMA_InitStructure.DMA_Priority = DMA_Priority_High;
+	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
+	DMA_Init(DMA1_Channel7, &DMA_InitStructure);
+	/* Enable the USART Tx DMA request */
+	USART_DMACmd(USART2, USART_DMAReq_Tx, ENABLE);
+	/* Enable DMA Stream Transfer Complete interrupt */
+	DMA_ITConfig(DMA1_Channel7, DMA_IT_TC, ENABLE);
+	/* Disable the DMA Tx Stream */
+	DMA_Cmd(DMA1_Channel7, DISABLE);
+	/* Enable the USART1 Tx DMA Interrupt */
+	NVIC_EnableIRQ(DMA1_Channel7_IRQn);
+#endif
+
+	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2); /* 2 bits for preemption, 2 bits for sub priority */
+
+	NVIC_InitStructure.NVIC_IRQChannel = USART2_IRQn;		 // we want to configure the USART1 interrupts
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;// this sets the priority group of the USART1 interrupts
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 2;		 // this sets the subpriority inside the group
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;			 // the USART1 interrupts are globally enabled
+	NVIC_Init(&NVIC_InitStructure);							 // the properties are passed to the NVIC_Init function which takes care of the low level stuff	
+
+  	NVIC_InitStructure.NVIC_IRQChannel = DMA1_Channel6_IRQn;
+  	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+  	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
+  	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+  	NVIC_Init(&NVIC_InitStructure);
+
+#ifdef USART_TX_DMA
+	/* Enable USART2 DMA TX Finish Interrupt */
+  	NVIC_InitStructure.NVIC_IRQChannel = DMA1_Channel7_IRQn;
+  	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+  	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+  	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+  	NVIC_Init(&NVIC_InitStructure);
+#endif
 }
 
 #ifdef USART_TX_DMA
 
 void DMA1_Channel7_IRQHandler(void)
 {
+#if 1	
 	/* Test on DMA Stream Transfer Complete interrupt */
-	if(DMA_GetFlagStatus(DMA1_IT_TC7)) {
+	if(DMA_GetITStatus(DMA1_IT_TC7)) {
     	/* Clear DMA Stream Transfer Complete interrupt pending bit */
     	DMA_ClearITPendingBit(DMA1_IT_TC7);
+    	usart2_tx_busy = false;
 	}
+#else
+	DMA_ClearITPendingBit(DMA1_IT_TC7);
+	usart2_tx_busy = false;
+#endif	
 }
 
 #endif
 
 void DMA1_Channel6_IRQHandler(void)
 {
+#if 1	
 	/* Test on DMA Stream Transfer Complete interrupt */
-	if(DMA_GetFlagStatus(DMA1_IT_TC6)) {	
+	if(DMA_GetITStatus(DMA1_IT_TC6)) {	
 		/* Clear DMA Stream Transfer Complete interrupt pending bit */
 		DMA_ClearITPendingBit(DMA1_IT_TC6);
 	}
+#else
+	DMA_ClearITPendingBit(DMA1_IT_TC6);		
+#endif
 }
 
 void Usart2_Puts(char *string) 
 {
-	while(usart2_tx_busy);
-	usart2_tx_busy = true;
 #if USART_TX_DMA
+	while(usart2_tx_busy);
+
 	uint16_t len = strlen(string);  
 	if(len > MAX_TX_LEN)
 		len = MAX_TX_LEN;	
 
-	//while(USART_GetFlagStatus(USART2, USART_FLAG_TC) == RESET);
-	while(DMA_GetCurrDataCounter(DMA1_Channel7)); // 检查DMA发送通道内是否还有数据
+	while(USART_GetFlagStatus(USART2, USART_FLAG_TC) == RESET);
+	//while(DMA_GetCurrDataCounter(DMA1_Channel7)); // 检查DMA发送通道内是否还有数据
 
 	DMA_Cmd(DMA1_Channel7, DISABLE);
 	memcpy(usart2_tx_data, string, len); 
 	DMA_SetCurrDataCounter(DMA1_Channel7, len);
 	DMA_Cmd(DMA1_Channel7, ENABLE);
+
+	usart2_tx_busy = true;
 #else
 	Usart_Puts(USART2, string);
 #endif
@@ -305,9 +320,10 @@ void Usart2_Printf(const char *fmt, ...)
 
 void Usart2_Write(uint8_t *data, uint8_t len)
 {
-	while(usart2_tx_busy);
-	usart2_tx_busy = true;
 #ifdef USART2_LIN_BUS
+	while(USART_GetFlagStatus(USART2, USART_FLAG_TC) == RESET)
+		usart2_idle_tick = 0;
+
 	while(usart2_idle_tick < LIN_BUS_IDLE_TICK);
 
 	//USART_SendBreak(USART2);
@@ -315,16 +331,20 @@ void Usart2_Write(uint8_t *data, uint8_t len)
 
 #endif
 #if USART_TX_DMA
+	while(usart2_tx_busy);
+
 	if(len > MAX_TX_LEN)
 		len = MAX_TX_LEN;
 	
 	//while(USART_GetFlagStatus(USART2, USART_FLAG_TC) == RESET);
-	while(DMA_GetCurrDataCounter(DMA1_Channel7)); // 检查DMA发送通道内是否还有数据
+	//while(DMA_GetCurrDataCounter(DMA1_Channel7)); // 检查DMA发送通道内是否还有数据
 
 	DMA_Cmd(DMA1_Channel7, DISABLE);
 	memcpy(usart2_tx_data, data, len); 
 	DMA_SetCurrDataCounter(DMA1_Channel7, len);
 	DMA_Cmd(DMA1_Channel7, ENABLE);
+
+	usart2_tx_busy = true;
 #else
 	Usart_Write(USART2, data, len);
 #endif
@@ -371,18 +391,6 @@ void USART2_IRQHandler(void)
         DMA_Cmd(DMA1_Channel6, ENABLE);  
     }
 
-    if(USART_GetITStatus(USART2, USART_IT_TC) != RESET) { /* Transmition Complete */
-		USART_ClearFlag(USART2, USART_FLAG_TC);        //清除TC位，否则会重复进入中断
-#if USART_TX_DMA
-		DMA_Cmd(DMA1_Channel7, DISABLE); // 关闭DMA
-    	DMA1_Channel7->CNDTR=0;          // 清除数据长度
-#endif
-#ifdef USART2_LIN_BUS
-		usart2_idle_tick = 0; /* Reset idle tick to prevent TX racing */
-#endif
-		usart2_tx_busy = false;    	
-    }
-
 #ifdef USART2_LIN_BUS
 	if(USART_GetITStatus(USART2, USART_IT_LBD) != RESET) {
 		USART_ClearITPendingBit(USART2, USART_IT_LBD);     //清break中断位
@@ -395,10 +403,9 @@ void USART2_IRQHandler(void)
 */
 
 #if USART_TX_DMA
+volatile bool_t usart3_tx_busy = false;
 static char usart3_tx_data[MAX_TX_LEN];
 #endif
-
-volatile bool_t usart3_tx_busy = false;
 
 #ifdef USART3_LIN_BUS
 volatile uint32_t usart3_idle_tick = 0;
@@ -413,7 +420,7 @@ void Usart3_Init(uint32_t baudrate)
 	USART_InitTypeDef USART_InitStructure;	
 	NVIC_InitTypeDef NVIC_InitStructure;
 
-	/* enable peripheral clock for USART2 */
+	/* enable peripheral clock for USART3 */
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART3, ENABLE);
 
 	/* GPIOB clock enable */
@@ -450,24 +457,7 @@ void Usart3_Init(uint32_t baudrate)
 	 * to jump to the USART2_IRQHandler() function
 	 * if the USART1 receive interrupt occurs
 	 */
-	USART_ClearFlag(USART3, USART_FLAG_TC); /* 清发送外城标志，Transmission Complete flag */
 	USART_ITConfig(USART3, USART_IT_IDLE, ENABLE);
-
-#ifdef USART_TX_DMA
-	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
-	/* Enable USART2 DMA TX Finish Interrupt */
-  	NVIC_InitStructure.NVIC_IRQChannel = DMA1_Channel2_IRQn;
-  	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
-  	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
-  	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-  	NVIC_Init(&NVIC_InitStructure);
-#endif
-	
-	NVIC_InitStructure.NVIC_IRQChannel = USART3_IRQn;		 // we want to configure the USART1 interrupts
-	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;// this sets the priority group of the USART1 interrupts
-	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;		 // this sets the subpriority inside the group
-	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;			 // the USART1 interrupts are globally enabled
-	NVIC_Init(&NVIC_InitStructure);							 // the properties are passed to the NVIC_Init function which takes care of the low level stuff	
 
 #ifdef USART3_LIN_BUS
 	USART_LINBreakDetectLengthConfig(USART3, USART_LINBreakDetectLength_11b);
@@ -476,41 +466,11 @@ void Usart3_Init(uint32_t baudrate)
 #endif
 
 	USART_Cmd(USART3, ENABLE); // enable USART3
+	USART_ClearFlag(USART3, USART_FLAG_TC); /* 清发送外城标志，Transmission Complete flag */
 
 	DMA_InitTypeDef  DMA_InitStructure;
-
-#if USART_TX_DMA
 	/* DMA1 clock enable */
 	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
-	DMA_DeInit(DMA1_Channel2);
-	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST; // Transmit
-	DMA_InitStructure.DMA_MemoryBaseAddr = (uint32_t)usart3_tx_data;
-	DMA_InitStructure.DMA_BufferSize = MAX_TX_LEN;
-	DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t)&USART3->DR;
-	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
-	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
-	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
-	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
-	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
-	DMA_InitStructure.DMA_Priority = DMA_Priority_High;
-	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
-	DMA_Init(DMA1_Channel2, &DMA_InitStructure);
-
-	USART_ITConfig(USART3, USART_IT_TC, ENABLE);
-
-	/* Enable the USART Tx DMA request */
-	USART_DMACmd(USART3, USART_DMAReq_Tx, ENABLE);
-	/* Enable DMA Stream Transfer Complete interrupt */
-	DMA_ITConfig(DMA1_Channel2, DMA_IT_TC, ENABLE);
-	/* Disable the DMA Tx Stream */
-	DMA_Cmd(DMA1_Channel2, DISABLE);
-	/* Enable the USART1 Tx DMA Interrupt */
-	NVIC_EnableIRQ(DMA1_Channel2_IRQn); 
-#endif
-
-	/* DMA1 clock enable */
-	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
-      
 	DMA_DeInit(DMA1_Channel3);
 	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralSRC; // Receive
 	DMA_InitStructure.DMA_MemoryBaseAddr = (uint32_t)usart3_rx_data;
@@ -532,46 +492,108 @@ void Usart3_Init(uint32_t baudrate)
 	DMA_Cmd(DMA1_Channel3, ENABLE);
 	/* Enable the USART3 Rx DMA Interrupt */
 	NVIC_EnableIRQ(DMA1_Channel3_IRQn);		
+
+#if USART_TX_DMA
+	/* DMA1 clock enable */
+	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
+	DMA_DeInit(DMA1_Channel2);
+	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST; // Transmit
+	DMA_InitStructure.DMA_MemoryBaseAddr = (uint32_t)usart3_tx_data;
+	DMA_InitStructure.DMA_BufferSize = MAX_TX_LEN;
+	DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t)&USART3->DR;
+	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
+	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
+	DMA_InitStructure.DMA_Priority = DMA_Priority_High;
+	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
+	DMA_Init(DMA1_Channel2, &DMA_InitStructure);
+	/* Enable the USART Tx DMA request */
+	USART_DMACmd(USART3, USART_DMAReq_Tx, ENABLE);
+	/* Enable DMA Stream Transfer Complete interrupt */
+	DMA_ITConfig(DMA1_Channel2, DMA_IT_TC, ENABLE);
+	/* Disable the DMA Tx Stream */
+	DMA_Cmd(DMA1_Channel2, DISABLE);
+	/* Enable the USART1 Tx DMA Interrupt */
+	NVIC_EnableIRQ(DMA1_Channel2_IRQn); 
+#endif
+
+	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2); /* 2 bits for preemption, 2 bits for sub priority */
+
+	NVIC_InitStructure.NVIC_IRQChannel = USART3_IRQn;		 // we want to configure the USART1 interrupts
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 2;// this sets the priority group of the USART1 interrupts
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 2;		 // this sets the subpriority inside the group
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;			 // the USART1 interrupts are globally enabled
+	NVIC_Init(&NVIC_InitStructure);							 // the properties are passed to the NVIC_Init function which takes care of the low level stuff	
+
+	/* Enable USART3 DMA RX Finish Interrupt */
+  	NVIC_InitStructure.NVIC_IRQChannel = DMA1_Channel3_IRQn;
+  	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 2;
+  	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
+  	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+  	NVIC_Init(&NVIC_InitStructure);
+
+#ifdef USART_TX_DMA
+	/* Enable USART3 DMA TX Finish Interrupt */
+  	NVIC_InitStructure.NVIC_IRQChannel = DMA1_Channel2_IRQn;
+  	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 2;
+  	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+  	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+  	NVIC_Init(&NVIC_InitStructure);
+#endif
 }
 
 #if USART_TX_DMA
 
 void DMA1_Channel2_IRQHandler(void)
 {
+#if 1	
 	/* Test on DMA Stream Transfer Complete interrupt */
-	if(DMA_GetFlagStatus(DMA1_IT_TC2)) {
+	if(DMA_GetITStatus(DMA1_IT_TC2)) {
 		/* Clear DMA Stream Transfer Complete interrupt pending bit */
 		DMA_ClearITPendingBit(DMA1_IT_TC2);
+		usart3_tx_busy = false;
 	}
+#else
+	DMA_ClearITPendingBit(DMA1_IT_TC2);
+	usart3_tx_busy = false;
+#endif	
 }
 
 #endif
 
 void DMA1_Channel3_IRQHandler(void)
 {
+#if 1	
 	/* Test on DMA Stream Transfer Complete interrupt */
-	if(DMA_GetFlagStatus(DMA1_IT_TC3)) {
+	if(DMA_GetITStatus(DMA1_IT_TC3)) {
 		/* Clear DMA Stream Transfer Complete interrupt pending bit */
 		DMA_ClearITPendingBit(DMA1_IT_TC3);
-	}  
+	}
+#else
+	DMA_ClearITPendingBit(DMA1_IT_TC3);
+#endif	
 }
 
 void Usart3_Puts(char *string) 
 {
-	while(usart3_tx_busy);
-	usart3_tx_busy = true;
 #if USART_TX_DMA
+	while(usart3_tx_busy);
+	
 	uint16_t len = strlen(string);  
 	if(len > MAX_TX_LEN)
 		len = MAX_TX_LEN;
 
-	//while(USART_GetFlagStatus(USART3, USART_FLAG_TC) == RESET);
-	while(DMA_GetCurrDataCounter(DMA1_Channel2)); // 检查DMA发送通道内是否还有数据
+	while(USART_GetFlagStatus(USART3, USART_FLAG_TC) == RESET);
+	//while(DMA_GetCurrDataCounter(DMA1_Channel2)); // 检查DMA发送通道内是否还有数据
 
 	DMA_Cmd(DMA1_Channel2, DISABLE);
 	memcpy(usart3_tx_data, string, len); 
 	DMA_SetCurrDataCounter(DMA1_Channel2, len);
 	DMA_Cmd(DMA1_Channel2, ENABLE);
+
+	usart3_tx_busy = true;
 #else
 	Usart_Puts(USART3, string);
 #endif
@@ -590,9 +612,10 @@ void Usart3_Printf(const char *fmt, ...)
 
 void Usart3_Write(uint8_t *data, uint8_t len)
 {
-	while(usart3_tx_busy);
-	usart3_tx_busy = true;
 #ifdef USART3_LIN_BUS
+	while(USART_GetFlagStatus(USART3, USART_FLAG_TC) == RESET)
+		usart3_idle_tick = 0;
+
 	while(usart3_idle_tick < LIN_BUS_IDLE_TICK);
 
 	//USART_SendBreak(USART3);
@@ -600,16 +623,20 @@ void Usart3_Write(uint8_t *data, uint8_t len)
 
 #endif
 #if USART_TX_DMA
+	while(usart3_tx_busy);
+
 	if(len > MAX_TX_LEN)
 		len = MAX_TX_LEN;
 
-	//while(USART_GetFlagStatus(USART3, USART_FLAG_TC) == RESET);
-	while(DMA_GetCurrDataCounter(DMA1_Channel2)); // 检查DMA发送通道内是否还有数据
+	while(USART_GetFlagStatus(USART3, USART_FLAG_TC) == RESET);
+	//while(DMA_GetCurrDataCounter(DMA1_Channel2)); // 检查DMA发送通道内是否还有数据
 
 	DMA_Cmd(DMA1_Channel2, DISABLE);
 	memcpy(usart3_tx_data, data, len); 
 	DMA_SetCurrDataCounter(DMA1_Channel2, len);
 	DMA_Cmd(DMA1_Channel2, ENABLE);
+
+	usart3_tx_busy = true;
 #else
 	Usart_Write(USART3, data, len);
 #endif
@@ -657,18 +684,6 @@ void USART3_IRQHandler(void)
         DMA_Cmd(DMA1_Channel3, ENABLE);  
 
         usart3_idle_tick = 0;
-    }
-
-    if(USART_GetITStatus(USART3, USART_IT_TC) != RESET) { /* Transmition Complete */
-    	USART_ClearFlag(USART3, USART_FLAG_TC);        //清除TC位，否则会重复进入中断
-#if USART_TX_DMA
-    	DMA_Cmd(DMA1_Channel2, DISABLE); // 关闭DMA
-    	DMA1_Channel2->CNDTR=0;          // 清除数据长度
-#endif
-#ifdef USART3_LIN_BUS
-		usart3_idle_tick = 0; /* Reset idle tick to prevent TX racing */
-#endif
-    	usart3_tx_busy = false;
     }
 
 #ifdef USART3_LIN_BUS

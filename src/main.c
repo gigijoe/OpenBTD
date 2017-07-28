@@ -622,15 +622,18 @@ void IBus_DecodeMfl(uint8_t *p)
     ssm.enable = !ssm.enable;
 
     if(ssm.enable == false) {
-      IBus_RedrawRadioScreen("");      
+      IBus_RedrawRadioScreen("");
+      delay_ms(100);  
       IBus_RedrawBcScreen("Disable Monitor");
 #if 0      
       uint8_t d1[] = { 0x23, 0x40, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
       IBus_Send2(0x68, 0xe7, d1, 14); /* Display on ANZV OBC TextBar */
 #endif      
     } else {
-      IBus_RedrawIkeScreen("BMW E38 Individual");      
-      IBus_RedrawBcScreen("Enable Monitor");     
+      IBus_RedrawIkeScreen("BMW E38 Individual");
+      delay_ms(100);      
+      IBus_RedrawBcScreen("Enable Monitor");
+      delay_ms(100);     
       Ssm_Update();
     }
   }
@@ -878,8 +881,9 @@ void Tim4_1000ms(void)
   uint8_t d2[] = { 0x3b, 0x01 };
   IBus_Send2(0x50, 0x68, d2, 2);
 */
-  if(tim4Tick_1000ms == 2) /* Show log ONLY after 2 secs of power on */
+  if(tim4Tick_1000ms == 2) { /* Show log ONLY after 2 secs of power on */
     IBus_RedrawIkeScreen("BMW E38 Individual");
+  }
 
   Ssm_Update();
 }

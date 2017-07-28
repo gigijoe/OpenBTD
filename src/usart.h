@@ -14,7 +14,7 @@
 #define USART_TX_DMA 1
 
 //#define USART2_LIN_BUS 1
-//#define USART3_LIN_BUS 1
+#define USART3_LIN_BUS 1
 
 #define MAX_TX_LEN 128
 #define MAX_RX_LEN 128 // this is the maximum string length of our string in characters

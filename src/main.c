@@ -29,8 +29,9 @@
 #include "usart.h"
 #include "adc.h"
 #include "pwm.h"
+#if 0
 #include "glcd.h"
-
+#endif
 #include "ibus.h"
 /*
 *
@@ -39,7 +40,8 @@
 static char *BatteryVoltage(void)
 {
   static char vs[5];
-  float v = (float) ADC_ConvertedValue / 4096 * 3.3 * (10.0 / 2.15);
+  //float v = (float) ADC_ConvertedValue / 4096 * 3.3 * (10.0 / 2.15);
+  float v = (float) ADC_ConvertedValue / 4096 * 3.3 * (10.0 / 2.58);
   snprintf(vs, 5, "%f", v);
 
   return vs;
@@ -650,7 +652,7 @@ void IBus_DecodeRad(uint8_t *p)
       ssm.radioPowerOn = true;
   }
 
-//Usart2_Printf("\r\nRadio Power %s\r\n", ssm.radioPowerOn ? "On" : "Off");
+Usart2_Printf("\r\nRadio Power %s\r\n", ssm.radioPowerOn ? "On" : "Off");
 }
 
 const uint8_t BTN_MID_TOKEN[] = { 0x31, 0x80, 0x00 };  
@@ -676,7 +678,7 @@ void IBus_DecodeMid(uint8_t *p)
           case 12: break;
         }
       } else { /* Button pressed */
-//Usart2_Printf("\r\nRadio button %d pressed\r\n", p[6] & 0x0f);
+Usart2_Printf("\r\nRadio button %d pressed\r\n", p[6] & 0x0f);
         switch(p[6] & 0x0f) {
           case 0: break;
           case 1: break;
@@ -923,9 +925,9 @@ int main(void)
 
   Pwm_Init();
   Pwm1_Pulse(10 * PwmPulseMax / 100);
-
+#if 0
   Glcd_Init(55, 0x04);
-
+#endif
   Tim4_Init();
   Tim4_Enable();
 #ifdef NAVCODER
@@ -997,7 +999,7 @@ int main(void)
     int len = Usart2_Poll();
     if(len > 0) {
       uint8_t *p = (uint8_t *)Usart2_Gets();
-#if 0      
+#if 1      
       int i;
       for(i=0;i<len;i++) {
         if(p[i] == 0xd) { /* CR */
@@ -1027,7 +1029,7 @@ int main(void)
 */
     if(len > 0) {
       char *p = Usart3_Gets();
-#if 0
+
       switch(p[0]) { /* src */
         case MFL: /* MFL Multi Functional Steering Wheel Buttons */
           IBus_DecodeMfl(&p[0]);
@@ -1042,7 +1044,7 @@ int main(void)
           IBus_DecodeMid(&p[0]);
           break;
       }
-
+#if 1
       if(IBus_State() == ibusStop)
         continue;
 

@@ -22,11 +22,14 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f10x.h"
 #include <string.h>
+#include <stdio.h>
 
 #include "bool.h"
 #include "delay.h"
 #include "usart.h"
 #include "adc.h"
+#include "pwm.h"
+#include "glcd.h"
 
 #include "ibus.h"
 /*
@@ -279,7 +282,7 @@ static uint8_t XOR_Checksum(uint8_t *buf, uint16_t len)
   return checksum;
 }
 
-#define MAX_CMD_LEN 128
+#define MAX_CMD_LEN 32
 
 typedef struct {
   char data[MAX_CMD_LEN + 1];
@@ -311,7 +314,7 @@ void Shell_InputReset(Shell *s)
   s->len = 0;
 }
 
-#define MAX_ID_COUNT 32
+#define MAX_ID_COUNT 4
 static uint8_t srcIdCount = 0;
 static uint8_t srcId[MAX_ID_COUNT];
 static uint8_t destIdCount = 0;
@@ -629,7 +632,7 @@ void IBus_DecodeMfl(uint8_t *p)
       IBus_Send2(0x68, 0xe7, d1, 14); /* Display on ANZV OBC TextBar */
 #endif      
     } else {
-      IBus_RedrawIkeScreen("BMW E38 Individual");   
+      //IBus_RedrawIkeScreen("BMW E38 Individual");   
       IBus_RedrawBcScreen("Enable Monitor");
       Ssm_Update();
     }
@@ -647,7 +650,7 @@ void IBus_DecodeRad(uint8_t *p)
       ssm.radioPowerOn = true;
   }
 
-  Usart2_Printf("\r\nRadio Power %s\r\n", ssm.radioPowerOn ? "On" : "Off");
+//Usart2_Printf("\r\nRadio Power %s\r\n", ssm.radioPowerOn ? "On" : "Off");
 }
 
 const uint8_t BTN_MID_TOKEN[] = { 0x31, 0x80, 0x00 };  
@@ -673,7 +676,7 @@ void IBus_DecodeMid(uint8_t *p)
           case 12: break;
         }
       } else { /* Button pressed */
-Usart2_Printf("\r\nRadio button %d pressed\r\n", p[6] & 0x0f);
+//Usart2_Printf("\r\nRadio button %d pressed\r\n", p[6] & 0x0f);
         switch(p[6] & 0x0f) {
           case 0: break;
           case 1: break;
@@ -706,7 +709,7 @@ int Shell_Run(Shell *s)
   int ret = -1;
 
   char *p = 0;
-#define MAX_ARGC 32 
+#define MAX_ARGC 16 
   char *argv[MAX_ARGC];
   uint16_t argc = 0;
 
@@ -879,7 +882,7 @@ void Tim4_1000ms(void)
   IBus_Send2(0x50, 0x68, d2, 2);
 */
   if(tim4Tick_1000ms == 2) { /* Show log ONLY after 2 secs of power on */
-    IBus_RedrawIkeScreen("BMW E38 Individual");
+    //IBus_RedrawIkeScreen("BMW E38 Individual");
     IBus_RedrawBcScreen("BMW E38 Individual");
   }
 
@@ -917,6 +920,11 @@ int main(void)
   GPIO_SetBits(GPIOB, GPIO_Pin_15); /* pull high */
 
   ADC1_Init();
+
+  Pwm_Init();
+  Pwm1_Pulse(10 * PwmPulseMax / 100);
+
+  Glcd_Init(55, 0x04);
 
   Tim4_Init();
   Tim4_Enable();
@@ -989,6 +997,7 @@ int main(void)
     int len = Usart2_Poll();
     if(len > 0) {
       uint8_t *p = (uint8_t *)Usart2_Gets();
+#if 0      
       int i;
       for(i=0;i<len;i++) {
         if(p[i] == 0xd) { /* CR */
@@ -1008,6 +1017,7 @@ int main(void)
           Shell_Input(&shell, p[i]);
         }
       }
+#endif      
     }
 
     len = Usart3_Poll();
@@ -1017,7 +1027,7 @@ int main(void)
 */
     if(len > 0) {
       char *p = Usart3_Gets();
-
+#if 0
       switch(p[0]) { /* src */
         case MFL: /* MFL Multi Functional Steering Wheel Buttons */
           IBus_DecodeMfl(&p[0]);
@@ -1041,25 +1051,7 @@ int main(void)
         continue;
 
       Usart2_Puts("\r\n");
-#if 0
-      Usart2_Printf("%s : %s\r\n", hextoa(p[0]), ibus_device_name(p[0]));
-      Usart2_Printf("%s : %s\r\n", hextoa(p[2]), ibus_device_name(p[2]));
-      int i;
-      for(i=0;i<len;i++) {
-        if(p[i] < 0x20 || p[i] > 0x7e)
-          Usart2_Write((uint8_t *)".", 1);
-        else
-          Usart2_Write((uint8_t *)&p[i], 1);
-      }
-      Usart2_Puts("\r\n");
-      for(i=0;i<len;i++) {
-        Usart2_Write((uint8_t *)hextoa(p[i]), 2);
-        Usart2_Write((uint8_t *)" ", 1);
-        if(i == 2 || i == (len - 2))
-          Usart2_Write((uint8_t *)"| ", 2);
-      }
-      Usart2_Puts("\r\n");
-#else
+
       int i;
       for(i=0;i<len;i++) {
         Usart2_Write((uint8_t *)hextoa(p[i]), 2);

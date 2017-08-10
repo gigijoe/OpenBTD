@@ -16,8 +16,8 @@
 //#define USART2_LIN_BUS 1
 #define USART3_LIN_BUS 1
 
-#define MAX_TX_LEN 128
-#define MAX_RX_LEN 128 // this is the maximum string length of our string in characters
+#define MAX_TX_LEN 32
+#define MAX_RX_LEN 32 // this is the maximum string length of our string in characters
 
 void Usart2_Init(uint32_t baudrate);
 void Usart2_Puts(char *string);

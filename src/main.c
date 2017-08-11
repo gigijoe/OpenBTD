@@ -33,19 +33,6 @@
 #include "glcd.h"
 #endif
 #include "ibus.h"
-/*
-*
-*/
-
-static char *BatteryVoltage(void)
-{
-  static char vs[5];
-  //float v = (float) ADC_ConvertedValue / 4096 * 3.3 * (10.0 / 2.15);
-  float v = (float) ADC_ConvertedValue / 4096 * 3.3 * (10.0 / 2.58);
-  snprintf(vs, 5, "%f", v);
-
-  return vs;
-}
 
 /*
 *
@@ -552,6 +539,16 @@ void Ssm_Init()
   memset(ssm.temperture, 0x20, 4);
 }
 
+static char *BatteryVoltage(void)
+{
+  static char vs[5];
+  //float v = (float) ADC_ConvertedValue / 4096 * 3.3 * (10.0 / 2.15);
+  float v = (float) ADC_ConvertedValue / 4096 * 3.3 * (10.0 / 2.58);
+  snprintf(vs, 5, "%f", v);
+
+  return vs;
+}
+
 void Ssm_Update()
 {
   if(ssm.enable == false)
@@ -572,13 +569,80 @@ void Ssm_Update()
 
 void IBus_DecodeIke(uint8_t *p)
 {
+  static uint16_t speed = 0;
+  static uint16_t rpm = 0;
+  static bool heater = false;
+
   switch(p[3]) { /* Message ID */
+    case 0x18: { /* Speed & RPM */
+#if 0
+/*
+80 05 BF 18 ss rr cc 
+
+ss = speed / 2 [km/h] (512km/h max)
+rr = revs / 100 rpm
+*/
+      if(p[2] == GLO)
+        Usart2_Printf("IKE --> GLO : Speed/RPM: Speed %d km/h, %d RPM\r\n", p[4] << 1, p[5]);
+#endif
+      speed = p[4] << 1;
+      rpm = p[5] * 100;
+    } break;
     case 0x19: { /* Temperature */
 #if 0
       if(p[2] == GLO)
         Usart2_Printf("IKE --> GLO : Temperature, Outside %d°C, Coolant %d°C\r\n", p[4], p[5]);
 #endif
-      memcpy(ssm.temperture, hextodec(p[5]), 3);
+      int8_t tt = 94; /* target temperatur initialize to 85°C */
+      int8_t dt = 0; /* target temperature offset */
+
+      uint8_t ot = p[4]; /* outside temperature */
+      if(ot < 10)
+        dt = 0;
+      else if(ot < 20)
+        dt = 3;
+      else if(ot < 30)
+        dt = 6;
+      else if(ot < 40)
+        dt = 9;
+
+      tt -= dt;
+
+      if(rpm < 3000)
+        dt = 0;
+      else if(rpm < 5000)
+        dt = 3;
+      else
+        dt = 6;
+
+      tt -= dt;
+
+      if(speed < 100)
+        dt = 0;
+      else if(dt < 200)
+        dt = 3;
+      else
+        dt = 6;
+
+      tt -= dt;
+
+      if(tt < 85)
+        tt = 85;
+
+      uint8_t ct = p[5]; /* coolant temperature */
+      if(ct < (uint8_t)tt) {
+        if(heater == true)
+          IBus_RedrawIkeScreen("Thermostat Off");
+        GPIO_ResetBits(GPIOA, GPIO_Pin_1);  // turn off heater
+        heater = false;
+      } else {
+        if(heater == false)
+          IBus_RedrawIkeScreen("Thermostat On");
+        GPIO_SetBits(GPIOA, GPIO_Pin_1);  // turn on heater
+        heater = true;
+      }
+
+      memcpy(ssm.temperture, hextodec(ct), 3);
     } break;
   }
 }
@@ -628,14 +692,14 @@ void IBus_DecodeMfl(uint8_t *p)
 
     if(ssm.enable == false) {
       IBus_RedrawRadioScreen("");
-      IBus_RedrawBcScreen("Disable Monitor");
+      IBus_RedrawBcScreen("Monitor On");
 #if 0      
       uint8_t d1[] = { 0x23, 0x40, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
       IBus_Send2(0x68, 0xe7, d1, 14); /* Display on ANZV OBC TextBar */
 #endif      
     } else {
       //IBus_RedrawIkeScreen("BMW E38 Individual");   
-      IBus_RedrawBcScreen("Enable Monitor");
+      IBus_RedrawBcScreen("Monitor Off");
       Ssm_Update();
     }
   }
@@ -879,6 +943,15 @@ static uint32_t tim4Tick_1000ms = 0;
 
 void Tim4_1000ms(void)
 {
+#if 0
+  static bool ledSwitch = true;
+  if(ledSwitch)
+    GPIO_ResetBits(GPIOA, GPIO_Pin_1);  // turn off all led
+  else
+    GPIO_SetBits(GPIOA, GPIO_Pin_1);  // turn on all led
+
+  ledSwitch = !ledSwitch;
+#endif
 /*  
   uint8_t d2[] = { 0x3b, 0x01 };
   IBus_Send2(0x50, 0x68, d2, 2);
@@ -920,6 +993,16 @@ int main(void)
   GPIO_SetBits(GPIOB, GPIO_Pin_13); /* pull high */
   GPIO_SetBits(GPIOB, GPIO_Pin_14); /* pull high */
   GPIO_SetBits(GPIOB, GPIO_Pin_15); /* pull high */
+
+  /* GPIOA and GPIOC clock enable */
+  RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE); 
+
+  GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_1;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;       // 复用推挽输出
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+  GPIO_ResetBits(GPIOA, GPIO_Pin_1);
 
   ADC1_Init();
 

@@ -6,6 +6,7 @@
 //#define PwmPulseMax 2500 /* 400 Hz */
 
 void Pwm1_Pulse(uint16_t pulse);
+void Pwm1_Reverse();
 
 void Pwm_Init(void);
 void Pwm_Pulse(uint8_t channel, uint16_t pulse);

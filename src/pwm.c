@@ -1,4 +1,5 @@
 #include "pwm.h"
+#include "bool.h"
 
 void Pwm_Init(void)
 {
@@ -41,10 +42,21 @@ void Pwm_Init(void)
 	TIM_Cmd(TIM2, ENABLE);
 }
 
+static bool pwm1_reverse = false;
+
+void Pwm1_Reverse()
+{
+	pwm1_reverse = true;
+}
+
 void Pwm1_Pulse(uint16_t pulse)
 {
 	if(pulse > PwmPulseMax)	
 		pulse = PwmPulseMax;
+
+	if(pwm1_reverse)
+		pulse = PwmPulseMax - pulse;
+	
 	TIM2->CCR1 = pulse;
 }
 
@@ -52,6 +64,9 @@ void Pwm_Pulse(uint8_t channel, uint16_t pulse)
 {
 	if(pulse > PwmPulseMax)	
 		pulse = PwmPulseMax;
+
+	if(pwm1_reverse)
+		pulse = PwmPulseMax - pulse;
 
 	switch(channel) {
 		case 1: TIM2->CCR1 = pulse;

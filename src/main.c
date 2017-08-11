@@ -1007,6 +1007,7 @@ int main(void)
   ADC1_Init();
 
   Pwm_Init();
+  Pwm1_Reverse();
   Pwm1_Pulse(10 * PwmPulseMax / 100);
 #if 0
   Glcd_Init(55, 0x04);

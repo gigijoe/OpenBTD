@@ -57,7 +57,7 @@ F 3 "" H 5050 3700 60  0000 C CNN
 	1    0    0    -1  
 $EndComp
 Text Label 800  5300 0    60   ~ 0
-iBus
+I-Bus
 $Comp
 L R R?
 U 1 1 595248CF
@@ -202,28 +202,6 @@ Text GLabel 6650 4000 2    60   Output ~ 0
 USART2_TX
 Text GLabel 6650 3850 2    60   Input ~ 0
 USART2_RX
-$Comp
-L R R?
-U 1 1 595C74DB
-P 1350 5500
-F 0 "R?" V 1430 5500 40  0000 C CNN
-F 1 "499" V 1357 5501 40  0000 C CNN
-F 2 "" V 1280 5500 30  0000 C CNN
-F 3 "" H 1350 5500 30  0000 C CNN
-	1    1350 5500
-	0    1    1    0   
-$EndComp
-$Comp
-L +12V #PWR?
-U 1 1 595C75D1
-P 1600 5300
-F 0 "#PWR?" H 1600 5250 20  0001 C CNN
-F 1 "+12V" H 1600 5400 30  0000 C CNN
-F 2 "" H 1600 5300 60  0000 C CNN
-F 3 "" H 1600 5300 60  0000 C CNN
-	1    1600 5300
-	1    0    0    -1  
-$EndComp
 $Comp
 L GND #PWR?
 U 1 1 596304DE
@@ -408,10 +386,6 @@ Wire Wire Line
 	6500 3850 6650 3850
 Wire Wire Line
 	6500 4000 6650 4000
-Wire Wire Line
-	1600 5300 1600 5500
-Wire Wire Line
-	800  5500 1100 5500
 Wire Wire Line
 	2500 6150 2850 6150
 Wire Wire Line

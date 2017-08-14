@@ -23,6 +23,7 @@
 #include "stm32f10x.h"
 #include <string.h>
 #include <stdio.h>
+#include <math.h>
 
 #include "bool.h"
 #include "delay.h"
@@ -314,9 +315,10 @@ static IBusState state = ibusStop;
 int IBus_Help(void)
 {
   Usart2_Puts("\r\nIBus Inspector\r\n");
-
+#if 0
   Usart2_Puts("\r\n src [dev id 0] [dev id 1] ... [dev id n]");
   Usart2_Puts("\r\n dest [dev id 0] [dev id 1] ... [dev id n]");
+#endif  
   Usart2_Puts("\r\n recv");
   Usart2_Puts("\r\n stop");
 
@@ -325,6 +327,8 @@ int IBus_Help(void)
 
   return 0;
 }
+
+#if 0
 
 int IBus_SetupSource(int argc, char *argv[])
 {
@@ -352,6 +356,8 @@ int IBus_SetupDestination(int argc, char *argv[])
   return 0;
 }
 
+#endif
+
 int IBus_StartReceive(int argc, char *argv[])
 {
   state = ibusRecv;
@@ -363,6 +369,8 @@ int IBus_StopReceive(int argc, char *argv[])
   state = ibusStop;
   return 0;
 }
+
+#if 0
 
 int IBus_Send(int argc, char *argv[])
 {
@@ -392,6 +400,28 @@ int IBus_Send(int argc, char *argv[])
   return 0;
 }
 
+int IBus_SendRaw(int argc, char *argv[])
+{
+  if(argc <= 6)
+    return -1; /* Not enough data */
+  uint8_t code[MAX_TX_LEN];
+  int i, len = 0;
+  for(i=2;i<argc;i++)
+    code[len++] = atohex8(argv[i]); /* data */
+#if 0
+  Usart2_Puts("\r\n");
+  Usart2_Printf("Source : %s\r\n", ibus_device_name(code[0]));
+  Usart2_Printf("Length : 0x%x\r\n", code[1]);
+  Usart2_Printf("Destination : %s\r\n", ibus_device_name(code[2]));
+  Usart2_Printf("CRC : %s\r\n", hextoa(code[len-1])); /* All exclude CRC itself */
+#endif
+  Usart3_Write(&code[0], len);
+
+  return 0;
+}
+
+#endif
+
 int IBus_Send2(uint8_t src, uint8_t dest, uint8_t *data, uint8_t dataLen) 
 {
   uint8_t code[MAX_TX_LEN];
@@ -419,27 +449,9 @@ int IBus_Send2(uint8_t src, uint8_t dest, uint8_t *data, uint8_t dataLen)
   return 0;
 }
 
-int IBus_SendRaw(int argc, char *argv[])
-{
-  if(argc <= 6)
-    return -1; /* Not enough data */
-  uint8_t code[MAX_TX_LEN];
-  int i, len = 0;
-  for(i=2;i<argc;i++)
-    code[len++] = atohex8(argv[i]); /* data */
-#if 0
-  Usart2_Puts("\r\n");
-  Usart2_Printf("Source : %s\r\n", ibus_device_name(code[0]));
-  Usart2_Printf("Length : 0x%x\r\n", code[1]);
-  Usart2_Printf("Destination : %s\r\n", ibus_device_name(code[2]));
-  Usart2_Printf("CRC : %s\r\n", hextoa(code[len-1])); /* All exclude CRC itself */
-#endif
-  Usart3_Write(&code[0], len);
-
-  return 0;
-}
-
 IBusState IBus_State() { return state; }
+
+#if 0
 
 uint8_t IBus_ValidSource(uint8_t id)
 {
@@ -462,6 +474,8 @@ uint8_t IBus_ValidDestination(uint8_t id)
       return id;
   return 0;
 }
+
+#endif
 
 void IBus_RedrawRadioScreen(char *text)
 {
@@ -526,8 +540,10 @@ void IBus_RedrawIkeScreen(char *text)
 
 typedef struct {
   bool enable;
+  bool refresh;
   bool radioPowerOn;
-  char temperture[4];
+  uint8_t temperture;
+  float voltage;
 } Ssm;
 
 static Ssm ssm;
@@ -535,18 +551,10 @@ static Ssm ssm;
 void Ssm_Init()
 {
   ssm.enable = true;
+  ssm.refresh = true;
   ssm.radioPowerOn = false;
-  memset(ssm.temperture, 0x20, 4);
-}
-
-static char *BatteryVoltage(void)
-{
-  static char vs[5];
-  //float v = (float) ADC_ConvertedValue / 4096 * 3.3 * (10.0 / 2.15);
-  float v = (float) ADC_ConvertedValue / 4096 * 3.3 * (10.0 / 2.58);
-  snprintf(vs, 5, "%f", v);
-
-  return vs;
+  ssm.temperture = 0;
+  ssm.voltage = 0.0f;
 }
 
 void Ssm_Update()
@@ -554,18 +562,33 @@ void Ssm_Update()
   if(ssm.enable == false)
     return;
 
-  uint8_t d[] = { 0x23, 0x00, 0x20, 0x58, 0x58, 0x58, 0x43, 0x20, 0x03, 0x20, 0x20, 0x20, 0x20, 0x20, 0x56, 0x20, 0x04 };
-  memcpy(&d[3], ssm.temperture, 3);
+  float v = (float) ADC_SLOT[0] / 4096 * 3.3 * ((2.62 + 9.98) / 2.62);
+  float rv = floorf(v * 10.0f) / 10.0f; /* Round down to XX.X */
+  if(ssm.voltage != rv) {
+    ssm.voltage = rv;
+    ssm.refresh = true;
+  }
 
-  char *v = BatteryVoltage();
-  memcpy(&d[9], v, 4);
+  if(ssm.refresh == false)
+    return;
+
+  uint8_t d[] = { 0x23, 0x00, 0x20, 0x58, 0x58, 0x58, 0x43, 0x20, 0x03, 0x20, 0x20, 0x20, 0x20, 0x20, 0x56, 0x20, 0x04 };
+  memcpy(&d[3], hextodec(ssm.temperture), 3);
+
+  char vs[5];
+  snprintf(vs, 5, "%f", ssm.voltage);
+  memcpy(&d[9], vs, 4);
 
   IBus_Send2(0x68, 0xe7, d, 17); /* Display water temperture on ANZV OBC TextBar */
+
+  ssm.refresh = false;
 }
 
 /*
 *
 */
+
+#define TARGET_COOLANT_TEMPERATURE 94 /* target temperatur initialize to 94°C */
 
 void IBus_DecodeIke(uint8_t *p)
 {
@@ -593,7 +616,7 @@ rr = revs / 100 rpm
       if(p[2] == GLO)
         Usart2_Printf("IKE --> GLO : Temperature, Outside %d°C, Coolant %d°C\r\n", p[4], p[5]);
 #endif
-      int8_t tt = 94; /* target temperatur initialize to 85°C */
+      int8_t tt = TARGET_COOLANT_TEMPERATURE;
       int8_t dt = 0; /* target temperature offset */
 
       uint8_t ot = p[4]; /* outside temperature */
@@ -607,7 +630,7 @@ rr = revs / 100 rpm
         dt = 9;
 
       tt -= dt;
-
+#if 0
       if(rpm < 3000)
         dt = 0;
       else if(rpm < 5000)
@@ -616,13 +639,15 @@ rr = revs / 100 rpm
         dt = 6;
 
       tt -= dt;
-
-      if(speed < 100)
-        dt = 0;
-      else if(dt < 200)
+#endif
+      if(speed == 0)
+        dt = 9;
+      else if(speed < 60)
+        dt = 6;
+      else if(dt < 120)
         dt = 3;
       else
-        dt = 6;
+        dt = 0;
 
       tt -= dt;
 
@@ -642,7 +667,10 @@ rr = revs / 100 rpm
         heater = true;
       }
 
-      memcpy(ssm.temperture, hextodec(ct), 3);
+      if(ssm.temperture != ct) {
+        ssm.temperture = ct;
+        ssm.refresh = true;
+      }
     } break;
   }
 }
@@ -692,14 +720,14 @@ void IBus_DecodeMfl(uint8_t *p)
 
     if(ssm.enable == false) {
       IBus_RedrawRadioScreen("");
-      IBus_RedrawBcScreen("Monitor On");
+      IBus_RedrawBcScreen("Monitor Off");
 #if 0      
       uint8_t d1[] = { 0x23, 0x40, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
       IBus_Send2(0x68, 0xe7, d1, 14); /* Display on ANZV OBC TextBar */
 #endif      
     } else {
       //IBus_RedrawIkeScreen("BMW E38 Individual");   
-      IBus_RedrawBcScreen("Monitor Off");
+      IBus_RedrawBcScreen("Monitor On");
       Ssm_Update();
     }
   }
@@ -716,7 +744,7 @@ void IBus_DecodeRad(uint8_t *p)
       ssm.radioPowerOn = true;
   }
 
-Usart2_Printf("\r\nRadio Power %s\r\n", ssm.radioPowerOn ? "On" : "Off");
+//Usart2_Printf("\r\nRadio Power %s\r\n", ssm.radioPowerOn ? "On" : "Off");
 }
 
 const uint8_t BTN_MID_TOKEN[] = { 0x31, 0x80, 0x00 };  
@@ -742,7 +770,7 @@ void IBus_DecodeMid(uint8_t *p)
           case 12: break;
         }
       } else { /* Button pressed */
-Usart2_Printf("\r\nRadio button %d pressed\r\n", p[6] & 0x0f);
+//Usart2_Printf("\r\nRadio button %d pressed\r\n", p[6] & 0x0f);
         switch(p[6] & 0x0f) {
           case 0: break;
           case 1: break;
@@ -816,10 +844,12 @@ int Shell_Run(Shell *s)
 #endif
   if(strcmp("help", argv[0]) == 0)
     ret = IBus_Help();
+#if 0
   else if(strcmp("src", argv[0]) == 0)
     ret = IBus_SetupSource(argc, argv);
   else if(strcmp("dest", argv[0]) == 0)
     ret = IBus_SetupDestination(argc, argv);
+#endif    
   else if(strcmp("recv", argv[0]) == 0)
     ret = IBus_StartReceive(argc, argv);
   else if(strcmp("stop", argv[0]) == 0)
@@ -1008,7 +1038,9 @@ int main(void)
 
   Pwm_Init();
   Pwm1_Reverse();
-  Pwm1_Pulse(10 * PwmPulseMax / 100);
+  //Pwm1_Pulse(10 * PwmPulseMax / 100);
+  Pwm1_Pulse(0);
+
 #if 0
   Glcd_Init(55, 0x04);
 #endif
@@ -1131,11 +1163,11 @@ int main(void)
 #if 1
       if(IBus_State() == ibusStop)
         continue;
-
+#if 0
       if(p[0] != IBus_ValidSource(p[0]) ||
         p[2] != IBus_ValidDestination(p[2]))
         continue;
-
+#endif
       Usart2_Puts("\r\n");
 
       int i;

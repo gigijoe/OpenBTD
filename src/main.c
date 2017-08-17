@@ -98,7 +98,7 @@ static char *hextodec(uint8_t hex)
   return a;
 }
 
-static uint8_t atohex8(char *s)
+static uint8_t atohex(char *s)
 {
   uint8_t value = 0;
   if(!s)
@@ -336,7 +336,7 @@ int IBus_SetupSource(int argc, char *argv[])
   srcIdCount = 0;
   memset(srcId, 0, MAX_ID_COUNT);
   for(i=1;i<argc;i++) {
-    srcId[i-1] = atohex8(argv[i]);
+    srcId[i-1] = atohex(argv[i]);
     if(++srcIdCount >= MAX_ID_COUNT)
       break;
   }
@@ -349,7 +349,7 @@ int IBus_SetupDestination(int argc, char *argv[])
   destIdCount = 0;
   memset(destId, 0, MAX_ID_COUNT);
   for(i=1;i<argc;i++) {
-    destId[i-1] = atohex8(argv[i]);
+    destId[i-1] = atohex(argv[i]);
     if(++destIdCount >= MAX_ID_COUNT)
       break;
   }
@@ -377,12 +377,12 @@ int IBus_Send(int argc, char *argv[])
   if(argc <= 4)
     return -1; /* Not enough data */
   uint8_t code[MAX_TX_LEN];
-  code[0] = atohex8(argv[1]); /* src */
+  code[0] = atohex(argv[1]); /* src */
   /* code[1] : The length of the packet whithout Source ID and length it-self. */
-  code[2] = atohex8(argv[2]); /* dest */
+  code[2] = atohex(argv[2]); /* dest */
   int i, len = 1;
   for(i=3;i<argc;i++) {
-    code[i] = atohex8(argv[i]); /* data */
+    code[i] = atohex(argv[i]); /* data */
     len++;
   }
   len++; /* check sum length is 1 */
@@ -407,7 +407,7 @@ int IBus_SendRaw(int argc, char *argv[])
   uint8_t code[MAX_TX_LEN];
   int i, len = 0;
   for(i=2;i<argc;i++)
-    code[len++] = atohex8(argv[i]); /* data */
+    code[len++] = atohex(argv[i]); /* data */
 #if 0
   Usart2_Puts("\r\n");
   Usart2_Printf("Source : %s\r\n", ibus_device_name(code[0]));
@@ -538,33 +538,51 @@ void IBus_RedrawIkeScreen(char *text)
 
 /* SSM : System Status Monitor */
 
+typedef enum { SSM_DISABLED, SSM_COOLANT_VOLTAGE, SSM_COOLANT_THERMOSTAT, SSM_UNKNOWN } SsmMode;
+
 typedef struct {
-  bool enable;
+  SsmMode mode;
   bool refresh;
+  bool heaterPowerOn;
   bool radioPowerOn;
   uint8_t temperture;
-  float voltage;
+  float voltage, heaterCurrent;
 } Ssm;
 
-static Ssm ssm;
+static Ssm ssm; 
 
 void Ssm_Init()
 {
-  ssm.enable = true;
+  ssm.mode = SSM_COOLANT_VOLTAGE;
   ssm.refresh = true;
+  ssm.heaterPowerOn = false;
   ssm.radioPowerOn = false;
   ssm.temperture = 0;
   ssm.voltage = 0.0f;
+  ssm.heaterCurrent = 0.0f;
 }
 
 void Ssm_Update()
 {
-  if(ssm.enable == false)
+  if(ssm.mode == SSM_DISABLED)
     return;
+//ssm.refresh = true;
+//GPIO_SetBits(GPIOA, GPIO_Pin_1);  // turn on heater
+  float v, rv;
 
-  float v = (float) ADC_SLOT[0] / 4096 * 3.3 * ((2.62 + 9.98) / 2.62);
-  float rv = floorf(v * 10.0f) / 10.0f; /* Round down to XX.X */
-  if(ssm.voltage != rv) {
+  v = (float) ADC_SLOT[1] / 4096 * 3.3 / 0.582;
+  rv = floorf(v * 100.0f) / 100.0f; /* Round down to XX.XX */
+  //Usart2_Printf("Current is %f A\r\n", v);
+  if(ssm.mode == SSM_COOLANT_THERMOSTAT && 
+      ssm.heaterPowerOn && ssm.heaterCurrent != rv) {
+    ssm.heaterCurrent = rv;
+    ssm.refresh = true;
+  }
+
+  v = (float) ADC_SLOT[0] / 4096 * 3.3 * ((2.62 + 9.98) / 2.62);
+  rv = floorf(v * 10.0f) / 10.0f; /* Round down to XX.X */
+  if(ssm.mode == SSM_COOLANT_VOLTAGE && 
+      ssm.voltage != rv) {
     ssm.voltage = rv;
     ssm.refresh = true;
   }
@@ -572,12 +590,20 @@ void Ssm_Update()
   if(ssm.refresh == false)
     return;
 
-  uint8_t d[] = { 0x23, 0x00, 0x20, 0x58, 0x58, 0x58, 0x43, 0x20, 0x03, 0x20, 0x20, 0x20, 0x20, 0x20, 0x56, 0x20, 0x04 };
+  uint8_t d[] = { 0x23, 0x00, 0x20, 0x58, 0x58, 0x58, 0x43, 0x20, 0x03, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x04 };
   memcpy(&d[3], hextodec(ssm.temperture), 3);
 
-  char vs[5];
-  snprintf(vs, 5, "%f", ssm.voltage);
-  memcpy(&d[9], vs, 4);
+  if(ssm.mode == SSM_COOLANT_VOLTAGE) {
+    char vs[5];
+    snprintf(vs, 5, "%f", ssm.voltage);
+    memcpy(&d[9], vs, 4);
+    d[14] = 'V';
+  } else if(ssm.mode == SSM_COOLANT_THERMOSTAT) {
+    char vs[6];
+    snprintf(vs, 6, "%f", ssm.heaterCurrent);
+    memcpy(&d[9], vs, 5);
+    d[14] = 'A';
+  }
 
   IBus_Send2(0x68, 0xe7, d, 17); /* Display water temperture on ANZV OBC TextBar */
 
@@ -594,7 +620,7 @@ void IBus_DecodeIke(uint8_t *p)
 {
   static uint16_t speed = 0;
   static uint16_t rpm = 0;
-  static bool heater = false;
+  //static bool heater = false;
 
   switch(p[3]) { /* Message ID */
     case 0x18: { /* Speed & RPM */
@@ -655,16 +681,16 @@ rr = revs / 100 rpm
         tt = 85;
 
       uint8_t ct = p[5]; /* coolant temperature */
-      if(ct < (uint8_t)tt) {
-        if(heater == true)
+      if(rpm == 0 || ct < (uint8_t)tt) { /* Do NOT enable thermostat heater while engine stopped */
+        if(ssm.heaterPowerOn == true)
           IBus_RedrawIkeScreen("Thermostat Off");
         GPIO_ResetBits(GPIOA, GPIO_Pin_1);  // turn off heater
-        heater = false;
+        ssm.heaterPowerOn = false;
       } else {
-        if(heater == false)
+        if(ssm.heaterPowerOn == false)
           IBus_RedrawIkeScreen("Thermostat On");
         GPIO_SetBits(GPIOA, GPIO_Pin_1);  // turn on heater
-        heater = true;
+        ssm.heaterPowerOn = true;
       }
 
       if(ssm.temperture != ct) {
@@ -716,9 +742,13 @@ void IBus_DecodeMfl(uint8_t *p)
     uint8_t d2[] = { 0x23, 0x01, 0x20, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30 };
     IBus_Send2(0x80, 0xe7, d2, 23); /* Display "12345678901234567890" on ANZV OBC TextBar - BC Screen (20) */    
 #endif
-    ssm.enable = !ssm.enable;
+    //ssm.mode = !ssm.mode;
+    if(++ssm.mode == SSM_UNKNOWN)
+      ssm.mode = SSM_DISABLED;
+    else
+      ssm.refresh = true;
 
-    if(ssm.enable == false) {
+    if(ssm.mode == SSM_DISABLED) {
       IBus_RedrawRadioScreen("");
       IBus_RedrawBcScreen("Monitor Off");
 #if 0      

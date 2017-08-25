@@ -1,3 +1,10 @@
+/*
+ * glcd.c
+ *
+ *  Created on: 31 Oct 2016
+ *      Author: Steve Chang
+ */
+
 #include "glcd.h"
 #include "delay.h"
 

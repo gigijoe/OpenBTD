@@ -1,3 +1,10 @@
+/*
+ * pwm.c
+ *
+ *  Created on: 14 July 2017
+ *      Author: Steve Chang
+ */
+
 #include "pwm.h"
 #include "bool.h"
 

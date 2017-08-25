@@ -1,3 +1,10 @@
+/*
+ * glcd.h
+ *
+ *  Created on: 31 Oct 2016
+ *      Author: Steve Chang
+ */
+
 #ifndef _GLCD_H_
 #define _GLCD_H_
 #include "stm32f10x.h"

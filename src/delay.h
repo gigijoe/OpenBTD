@@ -1,3 +1,10 @@
+/*
+ * delay.h
+ *
+ *  Created on: 31 Oct 2016
+ *      Author: Steve Chang
+ */
+
 #ifndef __DELAY_H
 #define __DELAY_H 			   
 #include "stm32f10x.h"

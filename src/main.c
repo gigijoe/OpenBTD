@@ -1,25 +1,35 @@
-/**
-  ******************************************************************************
-  * @file    GPIO/IOToggle/main.c 
-  * @author  MCD Application Team
-  * @version V3.5.0
-  * @date    08-April-2011
-  * @brief   Main program body.
-  ******************************************************************************
-  * @attention
-  *
-  * THE PRESENT FIRMWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
-  * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE
-  * TIME. AS A RESULT, STMICROELECTRONICS SHALL NOT BE HELD LIABLE FOR ANY
-  * DIRECT, INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING
-  * FROM THE CONTENT OF SUCH FIRMWARE AND/OR THE USE MADE BY CUSTOMERS OF THE
-  * CODING INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
-  *
-  * <h2><center>&copy; COPYRIGHT 2011 STMicroelectronics</center></h2>
-  ******************************************************************************
-  */ 
+/*
+ *  OpenBTD
+ *
+ *  Copyright (c) 2017, Steve Chang
+ *  stevegigijoe@yahoo.com.tw
+ *
+ *  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions are met:
+ *      * Redistributions of source code must retain the above copyright
+ *        notice, this list of conditions and the following disclaimer.
+ *      * Redistributions in binary form must reproduce the above copyright
+ *        notice, this list of conditions and the following disclaimer in the
+ *        documentation and/or other materials provided with the distribution.
+ *      * Neither the name of the holder(s) nor the
+ *        names of its contributors may be used to endorse or promote products
+ *        derived from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ *  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ *  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ *  DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+ *  DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ *  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ *  ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
 
-/* Includes ------------------------------------------------------------------*/
 #include "stm32f10x.h"
 #include <string.h>
 #include <stdio.h>
@@ -321,6 +331,7 @@ int IBus_Help(void)
 #endif  
   Usart2_Puts("\r\n recv");
   Usart2_Puts("\r\n stop");
+  Usart2_Puts("\r\n mode");
 
   //Usart2_Puts("\r\n send <src id> <dest id> <XX XX XX ...>");
   //Usart2_Puts("\r\n send raw <XX XX XX ...>");
@@ -538,15 +549,20 @@ void IBus_RedrawIkeScreen(char *text)
 
 /* SSM : System Status Monitor */
 
-typedef enum { SSM_DISABLED, SSM_COOLANT_VOLTAGE, SSM_COOLANT_THERMOSTAT, SSM_UNKNOWN } SsmMode;
+#define MAXIMUM_COOLANT_TEMPERATURE 105
+#define DEFAULT_COOLANT_TEMPERATURE 95 /* target temperatur initialize to 95°C */
+#define MININUM_COOLANT_TEMPERATURE 85
+
+typedef enum { SSM_DISABLED, SSM_COOLANT_VOLTAGE, SSM_COOLANT_HEATER_CURRENT, SSM_SETUP_COOLANT_TEMPERATURE, SSM_HEATER_FORCE_ON, SSM_UNKNOWN } SsmMode;
 
 typedef struct {
   SsmMode mode;
   bool refresh;
-  bool heaterPowerOn;
-  bool radioPowerOn;
-  uint8_t temperture;
+  bool heaterOn, heaterForceOn;
+  bool radioOn;
+  uint8_t temperture, targetTemperature;
   float voltage, heaterCurrent;
+  uint8_t VolumeUpTick, VolumeDownTick;
 } Ssm;
 
 static Ssm ssm; 
@@ -555,11 +571,15 @@ void Ssm_Init()
 {
   ssm.mode = SSM_COOLANT_VOLTAGE;
   ssm.refresh = true;
-  ssm.heaterPowerOn = false;
-  ssm.radioPowerOn = false;
+  ssm.heaterOn = false;
+  ssm.heaterForceOn = false;
+  ssm.radioOn = false;
   ssm.temperture = 0;
+  ssm.targetTemperature = DEFAULT_COOLANT_TEMPERATURE;
   ssm.voltage = 0.0f;
   ssm.heaterCurrent = 0.0f;
+  ssm.VolumeUpTick = 0;
+  ssm.VolumeDownTick = 0;
 }
 
 void Ssm_Update()
@@ -573,14 +593,27 @@ void Ssm_Update()
   v = (float) ADC_SLOT[1] / 4096 * 3.3 / 0.582;
   rv = floorf(v * 100.0f) / 100.0f; /* Round down to XX.XX */
   //Usart2_Printf("Current is %f A\r\n", v);
-  if(ssm.mode == SSM_COOLANT_THERMOSTAT && 
-      ssm.heaterPowerOn && ssm.heaterCurrent != rv) {
+  if((ssm.mode == SSM_COOLANT_HEATER_CURRENT || ssm.mode == SSM_HEATER_FORCE_ON) && 
+      ssm.heaterOn && ssm.heaterCurrent != rv) {
+//Usart2_Printf("Current is %f A\r\n", v);    
     ssm.heaterCurrent = rv;
     ssm.refresh = true;
+  }
+/* Thermostat Heater = TH */
+  if(ssm.heaterOn == false && ssm.heaterCurrent > 0.01f) {
+    IBus_RedrawIkeScreen("Heater : Error Short");
+  }
+
+  if(ssm.heaterOn == true) {
+    if(ssm.heaterCurrent < 0.01)
+      IBus_RedrawIkeScreen("Heater : Error Power");
+    else if(ssm.heaterCurrent < 0.5)
+      IBus_RedrawIkeScreen("Heater : Warning Fade");
   }
 
   v = (float) ADC_SLOT[0] / 4096 * 3.3 * ((2.62 + 9.98) / 2.62);
   rv = floorf(v * 10.0f) / 10.0f; /* Round down to XX.X */
+//Usart2_Printf("Voltage is %f V\r\n", v);  
   if(ssm.mode == SSM_COOLANT_VOLTAGE && 
       ssm.voltage != rv) {
     ssm.voltage = rv;
@@ -598,11 +631,16 @@ void Ssm_Update()
     snprintf(vs, 5, "%f", ssm.voltage);
     memcpy(&d[9], vs, 4);
     d[14] = 'V';
-  } else if(ssm.mode == SSM_COOLANT_THERMOSTAT) {
+  } else if(ssm.mode == SSM_COOLANT_HEATER_CURRENT || ssm.mode == SSM_HEATER_FORCE_ON) {
     char vs[6];
     snprintf(vs, 6, "%f", ssm.heaterCurrent);
     memcpy(&d[9], vs, 5);
     d[14] = 'A';
+  } else if(ssm.mode == SSM_SETUP_COOLANT_TEMPERATURE) {
+    char vs[4];
+    snprintf(vs, 4, "%d", ssm.targetTemperature);
+    memcpy(&d[10], vs, 3);
+    d[14] = 'C';    
   }
 
   IBus_Send2(0x68, 0xe7, d, 17); /* Display water temperture on ANZV OBC TextBar */
@@ -610,13 +648,27 @@ void Ssm_Update()
   ssm.refresh = false;
 }
 
+void Ssm_HeaterOn()
+{
+        if(ssm.heaterOn == false)
+          IBus_RedrawIkeScreen("Heater On");
+        GPIO_SetBits(GPIOA, GPIO_Pin_1);  // turn on heater
+        ssm.heaterOn = true;
+}
+
+void Ssm_HeaterOff()
+{
+        if(ssm.heaterOn == true)
+          IBus_RedrawIkeScreen("Heater Off");
+        GPIO_ResetBits(GPIOA, GPIO_Pin_1);  // turn off heater
+        ssm.heaterOn = false;  
+}
+
 /*
 *
 */
 
-#define TARGET_COOLANT_TEMPERATURE 94 /* target temperatur initialize to 94°C */
-
-void IBus_DecodeIke(uint8_t *p)
+void IBus_DecodeIke(const uint8_t *p)
 {
   static uint16_t speed = 0;
   static uint16_t rpm = 0;
@@ -642,10 +694,10 @@ rr = revs / 100 rpm
       if(p[2] == GLO)
         Usart2_Printf("IKE --> GLO : Temperature, Outside %d°C, Coolant %d°C\r\n", p[4], p[5]);
 #endif
-      int8_t tt = TARGET_COOLANT_TEMPERATURE;
+      int8_t tt = ssm.targetTemperature;
       int8_t dt = 0; /* target temperature offset */
 
-      uint8_t ot = p[4]; /* outside temperature */
+      int8_t ot = p[4]; /* outside temperature */
       if(ot < 10)
         dt = 0;
       else if(ot < 20)
@@ -656,7 +708,7 @@ rr = revs / 100 rpm
         dt = 9;
 
       tt -= dt;
-#if 0
+
       if(rpm < 3000)
         dt = 0;
       else if(rpm < 5000)
@@ -665,7 +717,7 @@ rr = revs / 100 rpm
         dt = 6;
 
       tt -= dt;
-#endif
+#if 0
       if(speed == 0)
         dt = 9;
       else if(speed < 60)
@@ -676,22 +728,15 @@ rr = revs / 100 rpm
         dt = 0;
 
       tt -= dt;
+#endif
+      if(tt < MININUM_COOLANT_TEMPERATURE)
+        tt = MININUM_COOLANT_TEMPERATURE;
 
-      if(tt < 85)
-        tt = 85;
-
-      uint8_t ct = p[5]; /* coolant temperature */
-      if(rpm == 0 || ct < (uint8_t)tt) { /* Do NOT enable thermostat heater while engine stopped */
-        if(ssm.heaterPowerOn == true)
-          IBus_RedrawIkeScreen("Thermostat Off");
-        GPIO_ResetBits(GPIOA, GPIO_Pin_1);  // turn off heater
-        ssm.heaterPowerOn = false;
-      } else {
-        if(ssm.heaterPowerOn == false)
-          IBus_RedrawIkeScreen("Thermostat On");
-        GPIO_SetBits(GPIOA, GPIO_Pin_1);  // turn on heater
-        ssm.heaterPowerOn = true;
-      }
+      int8_t ct = p[5]; /* coolant temperature */
+      if(rpm == 0 || (ct < tt && ssm.heaterForceOn == false)) /* Do NOT enable thermostat heater while engine stopped */
+        Ssm_HeaterOff();
+      else
+        Ssm_HeaterOn();
 
       if(ssm.temperture != ct) {
         ssm.temperture = ct;
@@ -700,13 +745,13 @@ rr = revs / 100 rpm
     } break;
   }
 }
-
+#if 0
 const uint8_t BTN_NEXT_PRESSED[] = { 0x50, 0x04, 0x68, 0x3b, 0x01, 0x06 };
 const uint8_t BTN_NEXT_RELEASED[] = { 0x50, 0x04, 0x68, 0x3b, 0x21, 0x26 };
 
 const uint8_t BTN_PREV_PRESSED[] = { 0x50, 0x04, 0x68, 0x3b, 0x08, 0x0f };
 const uint8_t BTN_PREV_RELEASED[] = { 0x50, 0x04, 0x68, 0x3b, 0x28, 0x2f };
-
+#endif
 const uint8_t BTN_VOLUME_UP[] = { 0x50, 0x04, 0x68, 0x32, 0x11, 0x1f };
 const uint8_t BTN_VOLUME_DOWN[] = { 0x50, 0x04, 0x68, 0x32, 0x10, 0x1e };
 
@@ -715,18 +760,39 @@ const uint8_t BTN_RT_TELEPHONE[] = { 0x50, 0x04, 0xc8, 0x3b, 0x40, 0xe7 };
 const uint8_t BTN_TELEPHONE_PRESSED[] = { 0x50, 0x04, 0xc8, 0x3b, 0x80, 0x27 };
 const uint8_t BTN_TELEPHONE_RELEASED[] = { 0x50, 0x04, 0xc8, 0x3b, 0xa0, 0x07 };
 
-void IBus_DecodeMfl(uint8_t *p)
-{  
+void IBus_DecodeMfl(const uint8_t *p)
+{ 
+#if 0 
   if(memcmp(BTN_NEXT_PRESSED, p, 6) == 0) {
-    GPIO_ResetBits(GPIOB, GPIO_Pin_13); /* pull low */
+    //GPIO_ResetBits(GPIOB, GPIO_Pin_13); /* pull low */
   } else if(memcmp(BTN_NEXT_RELEASED, p, 6) == 0) {
-    GPIO_SetBits(GPIOB, GPIO_Pin_13); /* pull high */
+    //GPIO_SetBits(GPIOB, GPIO_Pin_13); /* pull high */
   } else if(memcmp(BTN_PREV_PRESSED, p, 6) == 0) {
-    GPIO_ResetBits(GPIOB, GPIO_Pin_15); /* pull low */
+    //GPIO_ResetBits(GPIOB, GPIO_Pin_15); /* pull low */
   } else if(memcmp(BTN_PREV_RELEASED, p, 6) == 0) {
-    GPIO_SetBits(GPIOB, GPIO_Pin_15); /* pull high */
-  } else if(memcmp(BTN_VOLUME_UP, p, 6) == 0) {
+    //GPIO_SetBits(GPIOB, GPIO_Pin_15); /* pull high */
+  } else 
+#endif
+  if(memcmp(BTN_VOLUME_UP, p, 6) == 0) {
+    if(ssm.VolumeUpTick > 0)
+      return;
+    ssm.VolumeUpTick = 2;
+    if(ssm.mode == SSM_SETUP_COOLANT_TEMPERATURE) {
+      if(ssm.targetTemperature < MAXIMUM_COOLANT_TEMPERATURE) {
+        ssm.targetTemperature++;
+        ssm.refresh = true;
+      }
+    }
   } else if(memcmp(BTN_VOLUME_DOWN, p, 6) == 0) {
+    if(ssm.VolumeDownTick > 0)
+      return;
+    ssm.VolumeDownTick = 2;
+    if(ssm.mode == SSM_SETUP_COOLANT_TEMPERATURE) {
+      if(ssm.targetTemperature > MININUM_COOLANT_TEMPERATURE) {
+        ssm.targetTemperature--;
+        ssm.refresh = true;
+      }
+    }
   } else if(memcmp(BTN_RT_TELEPHONE, p, 6) == 0) {
   } else if(memcmp(BTN_TELEPHONE_PRESSED, p, 6) == 0) {
   } else if(memcmp(BTN_TELEPHONE_RELEASED, p, 6) == 0) {
@@ -742,24 +808,36 @@ void IBus_DecodeMfl(uint8_t *p)
     uint8_t d2[] = { 0x23, 0x01, 0x20, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30 };
     IBus_Send2(0x80, 0xe7, d2, 23); /* Display "12345678901234567890" on ANZV OBC TextBar - BC Screen (20) */    
 #endif
-    //ssm.mode = !ssm.mode;
     if(++ssm.mode == SSM_UNKNOWN)
       ssm.mode = SSM_DISABLED;
     else
       ssm.refresh = true;
 
+    if(ssm.mode == SSM_HEATER_FORCE_ON) {
+      ssm.heaterForceOn = true;
+      Ssm_HeaterOn();
+    } else {
+      ssm.heaterForceOn = false;
+      Ssm_HeaterOff();
+    }
+
     if(ssm.mode == SSM_DISABLED) {
       IBus_RedrawRadioScreen("");
-      IBus_RedrawBcScreen("Monitor Off");
+      IBus_RedrawBcScreen("BMW E38 Individual");
 #if 0      
       uint8_t d1[] = { 0x23, 0x40, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
       IBus_Send2(0x68, 0xe7, d1, 14); /* Display on ANZV OBC TextBar */
 #endif      
+    } else if(ssm.mode == SSM_SETUP_COOLANT_TEMPERATURE) {
+      IBus_RedrawBcScreen("Setup Temperature +/-");
+    } else if(ssm.mode == SSM_HEATER_FORCE_ON) {
+      IBus_RedrawBcScreen("Force Heater On");
     } else {
       //IBus_RedrawIkeScreen("BMW E38 Individual");   
-      IBus_RedrawBcScreen("Monitor On");
-      Ssm_Update();
+      //IBus_RedrawBcScreen("BMW E38 Individual");
+      IBus_RedrawBcScreen("");
     }
+    Ssm_Update();
   }
 }
 
@@ -768,13 +846,13 @@ const uint8_t RADIO_POWER_OFF[] = { 0x68, 0x05, 0xe7, 0x23, 0x00, 0x20, 0x89 };
 void IBus_DecodeRad(uint8_t *p)
 {
   if(memcmp(RADIO_POWER_OFF, p, 6) == 0)
-    ssm.radioPowerOn = false;
+    ssm.radioOn = false;
   else if(p[2] == ANZV) {
     if((p[3] == 0x21 || p[3] == 0x23) && (p[4] == 0x40 || p[4] == 0xc0 || p[4] == 0x80))
-      ssm.radioPowerOn = true;
+      ssm.radioOn = true;
   }
 
-//Usart2_Printf("\r\nRadio Power %s\r\n", ssm.radioPowerOn ? "On" : "Off");
+//Usart2_Printf("\r\nRadio Power %s\r\n", ssm.radioOn ? "On" : "Off");
 }
 
 const uint8_t BTN_MID_TOKEN[] = { 0x31, 0x80, 0x00 };  
@@ -884,6 +962,10 @@ int Shell_Run(Shell *s)
     ret = IBus_StartReceive(argc, argv);
   else if(strcmp("stop", argv[0]) == 0)
     ret = IBus_StopReceive(argc, argv);
+  else if(strcmp("mode", argv[0]) == 0) {
+    IBus_DecodeMfl(BTN_TELEPHONE_RELEASED);
+    ret = 0;
+  }
 /*  
   else if(strcmp("send", argv[0]) == 0) {
     if(argc > 2 && strcmp("raw", argv[1]) == 0)
@@ -961,7 +1043,7 @@ void Tim4_Enable(void)
 {
   TIM_Cmd(TIM4, ENABLE);
 }
-
+#if 0
 static uint32_t tim4Tick_1ms = 0;
 
 void Tim4_1ms(void)
@@ -985,7 +1067,7 @@ static uint32_t tim4Tick_100ms = 0;
 void Tim4_100ms(void)
 {
 }
-
+#endif
 static uint32_t tim4Tick_200ms = 0;
 
 void Tim4_200ms(void)
@@ -997,6 +1079,11 @@ void Tim4_200ms(void)
     GPIO_SetBits(GPIOB, GPIO_Pin_12);  // turn on all led
 
   ledSwitch = !ledSwitch;
+
+  if(ssm.VolumeUpTick > 0)
+    ssm.VolumeUpTick--;
+  if(ssm.VolumeDownTick > 0)
+    ssm.VolumeDownTick--;  
 }
 
 static uint32_t tim4Tick_1000ms = 0;
@@ -1089,11 +1176,12 @@ int main(void)
   Usart3_Init(9600);
 
   Ssm_Init();
-
+#if 0
   uint32_t tick_1ms = tim4Tick_1ms;
   uint32_t tick_10ms = tim4Tick_10ms;
   uint32_t tick_50ms = tim4Tick_50ms;
   uint32_t tick_100ms = tim4Tick_100ms;
+#endif  
   uint32_t tick_200ms = tim4Tick_200ms;
   uint32_t tick_1000ms = tim4Tick_1000ms;
 
@@ -1112,6 +1200,7 @@ int main(void)
     if(len > 0)
       Usart3_Write(Usart2_Gets(), len);
 #else
+#if 0    
     if(tick_1ms != tim4Tick_1ms) {
       tick_1ms = tim4Tick_1ms;
       Tim4_1ms();
@@ -1131,7 +1220,7 @@ int main(void)
       tick_100ms = tim4Tick_100ms;
       Tim4_100ms();
     }
-
+#endif
     if(tick_200ms != tim4Tick_200ms) {
       tick_200ms = tim4Tick_200ms;
       Tim4_200ms();
@@ -1248,6 +1337,7 @@ void TIM4_IRQHandler(void)
 {
   if(TIM_GetITStatus(TIM4, TIM_IT_Update) != RESET) {
     tim4Tick++;
+#if 0    
     tim4Tick_1ms++;
     if(tim4Tick % 10 == 0)
       tim4Tick_10ms++;
@@ -1255,6 +1345,7 @@ void TIM4_IRQHandler(void)
       tim4Tick_50ms++;
     if(tim4Tick % 100 == 0)
       tim4Tick_100ms++;
+#endif      
     if(tim4Tick % 200 == 0)
       tim4Tick_200ms++;
     if(tim4Tick % 1000 == 0)

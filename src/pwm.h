@@ -1,3 +1,10 @@
+/*
+ * pwm.h
+ *
+ *  Created on: 14 July 2017
+ *      Author: Steve Chang
+ */
+
 #ifndef _PWM_H_
 #define _PWM_H_
 #include "stm32f10x.h"

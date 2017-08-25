@@ -1,19 +1,13 @@
-/******************** (C) COPYRIGHT 2012 WildFire Team ***************************
- * 文件名  ：adc.c
- * 描述    ：adc应用函数库        
- * 实验平台：野火STM32开发板
- * 硬件连接：PC.1
- * 库版本  ：ST3.5.0 
+/*
+ * adc.c
  *
- * 作者    ：wildfire team 
- * 论坛    ：http://www.amobbs.com/forum-1008-1.html
- * 淘宝    ：http://firestm32.taobao.com
-**********************************************************************************/
+ *  Created on: 31 Oct 2016
+ *      Author: Steve Chang
+ */
+
 #include "adc.h"
 
 #define ADC1_DR_Address    ((u32)0x40012400+0x4c)
-
-//__IO uint16_t ADC_ConvertedValue;
 
 __IO uint16_t ADC_SLOT[NUM_CHANNEL];
 

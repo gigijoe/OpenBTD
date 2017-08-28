@@ -672,11 +672,14 @@ void USART3_IRQHandler(void)
         //获得接收帧帧长  
         len = MAX_RX_LEN - DMA_GetCurrDataCounter(DMA1_Channel3);  
 
-		if(len > 0 && (usart3_rx.len + len) < MAX_RX_LEN){
-			memcpy(&usart3_rx.data[usart3_rx.len], usart3_rx_data, len);
-			usart3_rx.len += len;
-		} else {
+/* Check if rx data is echo of tx data and strip it ... */
+        if(memcmp(usart3_tx_data, usart3_rx_data, len) != 0) {
+			if(len > 0 && (usart3_rx.len + len) < MAX_RX_LEN){
+				memcpy(&usart3_rx.data[usart3_rx.len], usart3_rx_data, len);
+				usart3_rx.len += len;
+			} else {
 			/* USART 3 over flow !!! */
+			}
 		}
         //设置传输数据长度  
         DMA_SetCurrDataCounter(DMA1_Channel3, MAX_RX_LEN);  

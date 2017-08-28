@@ -594,21 +594,10 @@ void Ssm_Update()
   rv = floorf(v * 100.0f) / 100.0f; /* Round down to XX.XX */
   //Usart2_Printf("Current is %f A\r\n", v);
   if((ssm.mode == SSM_COOLANT_HEATER_CURRENT || ssm.mode == SSM_HEATER_FORCE_ON) && 
-      ssm.heaterOn && ssm.heaterCurrent != rv) {
+      ssm.heaterCurrent != rv) {
 //Usart2_Printf("Current is %f A\r\n", v);    
     ssm.heaterCurrent = rv;
     ssm.refresh = true;
-  }
-/* Thermostat Heater = TH */
-  if(ssm.heaterOn == false && ssm.heaterCurrent > 0.01f) {
-    IBus_RedrawIkeScreen("Heater : Error Short");
-  }
-
-  if(ssm.heaterOn == true) {
-    if(ssm.heaterCurrent < 0.01)
-      IBus_RedrawIkeScreen("Heater : Error Power");
-    else if(ssm.heaterCurrent < 0.5)
-      IBus_RedrawIkeScreen("Heater : Warning Fade");
   }
 
   v = (float) ADC_SLOT[0] / 4096 * 3.3 * ((2.62 + 9.98) / 2.62);
@@ -622,7 +611,19 @@ void Ssm_Update()
 
   if(ssm.refresh == false)
     return;
+#if 0
+/* Thermostat Heater = TH */
+  if(ssm.heaterOn == false && ssm.heaterCurrent > 0.01f) {
+    IBus_RedrawIkeScreen("Heater : Error Short");
+  }
 
+  if(ssm.heaterOn == true) {
+    if(ssm.heaterCurrent < 0.01)
+      IBus_RedrawIkeScreen("Heater : Error Power");
+    else if(ssm.heaterCurrent < 0.5)
+      IBus_RedrawIkeScreen("Heater : Warning Fade");
+  }
+#endif
   uint8_t d[] = { 0x23, 0x00, 0x20, 0x58, 0x58, 0x58, 0x43, 0x20, 0x03, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x04 };
   memcpy(&d[3], hextodec(ssm.temperture), 3);
 
@@ -808,6 +809,11 @@ void IBus_DecodeMfl(const uint8_t *p)
     uint8_t d2[] = { 0x23, 0x01, 0x20, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30 };
     IBus_Send2(0x80, 0xe7, d2, 23); /* Display "12345678901234567890" on ANZV OBC TextBar - BC Screen (20) */    
 #endif
+    if(ssm.mode == SSM_HEATER_FORCE_ON) {
+      ssm.heaterForceOn = false;
+      Ssm_HeaterOff(); /* To turn again by IKE */      
+    }
+
     if(++ssm.mode == SSM_UNKNOWN)
       ssm.mode = SSM_DISABLED;
     else
@@ -816,9 +822,6 @@ void IBus_DecodeMfl(const uint8_t *p)
     if(ssm.mode == SSM_HEATER_FORCE_ON) {
       ssm.heaterForceOn = true;
       Ssm_HeaterOn();
-    } else {
-      ssm.heaterForceOn = false;
-      Ssm_HeaterOff();
     }
 
     if(ssm.mode == SSM_DISABLED) {

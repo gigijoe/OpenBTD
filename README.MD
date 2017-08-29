@@ -51,3 +51,10 @@ The BTD is the device that reads coolant temperature from IKE through I-Bus and 
 ## Hardware
 
 ## Software
+
+## Reference
+
+http://www.meeknet.co.uk/e31/BMW_M60_M62_M62TU_Engine_Cooling_System.htm
+
+http://www.meeknet.co.uk/e31/M62B44_Engine.pdf
+

@@ -1,0 +1,55 @@
+#
+# Reference
+#
+
+http://e38.org/bussystem.pdf
+
+http://www.alextronic.de/bmw/projects_bmw_info_ibus.html
+
+http://web.comhem.se/bengt-olof.swing/IBus.htm
+
+http://web.comhem.se/mulle2/IBUSInsideDRAFTREV5.pdf
+
+http://www.mikrocontroller.net/articles/BusAnalyzer#Interfacing_STM32F103_and_a_LIN_Transceiver
+
+http://mono.software/2016/12/01/hacking-bmw-i-bus-with-raspberry-pi/
+
+https://git.stackframe.org/?p=ibusmonitor/.git;a=blob;f=ibusmonitor.c;h=4e420ebc928eb7b2b4aa7d78aa429a3ddb632d56;hb=e53008f81bbf1f4d1f1c9f88e7a205cc5281c666
+
+#
+# BMW I-Bus monitor and decoder - GitHub
+#
+
+https://gist.github.com/birkir/5576736
+
+#
+# Arduino & BMW K/I-Bus Interface – Intro
+#
+
+http://curious.ninja/blog/arduino-bmw-i-bus-interface-intro/
+
+#
+# Arduino & BMW K/I-Bus Interface – Technical Details
+#
+
+http://curious.ninja/blog/arduino-bmw-i-bus-interface-technical-details/
+
+#
+# Arduino & BMW I/K Bus Interface – Integration
+#
+
+http://curious.ninja/blog/arduino-bmw-i-bus-interface-integration/
+
+#
+# OpenBM with verious I-Bus logs
+#
+
+https://github.com/cgart/OpenBM
+
+https://github.com/cgart/OpenBM/tree/master/ibus-logs/mt-logs
+
+#
+# imBMW
+#
+
+http://imbmw.net/

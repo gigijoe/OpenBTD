@@ -33,17 +33,21 @@
 #include "stm32f10x.h"
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 
 #include "bool.h"
 #include "delay.h"
 #include "usart.h"
 #include "adc.h"
+#include "ibus.h"
+
+#ifdef PWM_FAN
 #include "pwm.h"
-#if 0
+#endif
+#ifdef GLCD
 #include "glcd.h"
 #endif
-#include "ibus.h"
 
 /*
 *
@@ -282,105 +286,6 @@ static uint8_t XOR_Checksum(uint8_t *buf, uint16_t len)
   return checksum;
 }
 
-#define MAX_CMD_LEN 32
-
-typedef struct {
-  char data[MAX_CMD_LEN + 1];
-  int len;
-} Shell;
-
-void Shell_Input(Shell *s, char c)
-{
-  if(s->len < (MAX_CMD_LEN - 1)) {
-    if(c == 0x8) { /* backspace */
-      s->data[--s->len] = '\0';
-      return;
-    } else if(c < 0x20)
-      return;
-
-    s->data[s->len++] = c;
-    s->data[s->len] = '\0';
-  }
-}
-
-char *Shell_InputString(Shell *s)
-{
-  return s->len > 0 ? s->data : 0;
-}
-
-void Shell_InputReset(Shell *s)
-{
-  memset(s->data, 0, MAX_CMD_LEN + 1);
-  s->len = 0;
-}
-
-#define MAX_ID_COUNT 4
-static uint8_t srcIdCount = 0;
-static uint8_t srcId[MAX_ID_COUNT];
-static uint8_t destIdCount = 0;
-static uint8_t destId[MAX_ID_COUNT];
-typedef enum {ibusStop, ibusRecv} IBusState;
-static IBusState state = ibusStop;
-
-int IBus_Help(void)
-{
-  Usart2_Puts("\r\nIBus Inspector\r\n");
-#if 0
-  Usart2_Puts("\r\n src [dev id 0] [dev id 1] ... [dev id n]");
-  Usart2_Puts("\r\n dest [dev id 0] [dev id 1] ... [dev id n]");
-#endif  
-  Usart2_Puts("\r\n recv");
-  Usart2_Puts("\r\n stop");
-  Usart2_Puts("\r\n mode");
-
-  //Usart2_Puts("\r\n send <src id> <dest id> <XX XX XX ...>");
-  //Usart2_Puts("\r\n send raw <XX XX XX ...>");
-
-  return 0;
-}
-
-#if 0
-
-int IBus_SetupSource(int argc, char *argv[])
-{
-  int i;
-  srcIdCount = 0;
-  memset(srcId, 0, MAX_ID_COUNT);
-  for(i=1;i<argc;i++) {
-    srcId[i-1] = atohex(argv[i]);
-    if(++srcIdCount >= MAX_ID_COUNT)
-      break;
-  }
-  return 0;
-}
-
-int IBus_SetupDestination(int argc, char *argv[])
-{
-  int i;
-  destIdCount = 0;
-  memset(destId, 0, MAX_ID_COUNT);
-  for(i=1;i<argc;i++) {
-    destId[i-1] = atohex(argv[i]);
-    if(++destIdCount >= MAX_ID_COUNT)
-      break;
-  }
-  return 0;
-}
-
-#endif
-
-int IBus_StartReceive(int argc, char *argv[])
-{
-  state = ibusRecv;
-  return 0;
-}
-
-int IBus_StopReceive(int argc, char *argv[])
-{
-  state = ibusStop;
-  return 0;
-}
-
 #if 0
 
 int IBus_Send(int argc, char *argv[])
@@ -460,33 +365,15 @@ int IBus_Send2(uint8_t src, uint8_t dest, uint8_t *data, uint8_t dataLen)
   return 0;
 }
 
-IBusState IBus_State() { return state; }
-
-#if 0
-
-uint8_t IBus_ValidSource(uint8_t id)
+int IBus_SendRaw2(uint8_t *raw, uint8_t len)
 {
-  int i;
-  if(srcIdCount == 0)
-    return id;
-  for(i=0;i<srcIdCount;i++)
-    if(srcId[i] == id)
-      return id;
+  Usart3_Write(&raw[0], len);
+
   return 0;
 }
 
-uint8_t IBus_ValidDestination(uint8_t id)
-{
-  int i;
-  if(destIdCount == 0)
-    return id;
-  for(i=0;i<destIdCount;i++)
-    if(destId[i] == id)
-      return id;
-  return 0;
-}
-
-#endif
+static uint8_t radioScreenCommand[MAX_RX_LEN] = {0};
+static uint8_t radioScreenCommandSize = 0;
 
 void IBus_RedrawRadioScreen(char *text)
 {
@@ -507,9 +394,11 @@ void IBus_RedrawRadioScreen(char *text)
   IBus_Send2(0x68, 0xe7, d, 3+MAX_RADIO_SCREEN_LENGTH+1); /* Display on ANZV OBC TextBar */
 }
 
+static uint8_t bcScreenCommand[MAX_RX_LEN] = {0};
+static uint8_t bcScreenCommandSize = 0;
+
 void IBus_RedrawBcScreen(char *text)
 {
-//#define MAX_BC_SCREEN_LENGTH 24
 #define MAX_BC_SCREEN_LENGTH 20
 
   if(text == 0 || strlen(text) <= 0)
@@ -586,16 +475,14 @@ void Ssm_Update()
 {
   if(ssm.mode == SSM_DISABLED)
     return;
-//ssm.refresh = true;
-//GPIO_SetBits(GPIOA, GPIO_Pin_1);  // turn on heater
+
   float v, rv;
 
   v = (float) ADC_SLOT[1] / 4096 * 3.3 / 0.582;
   rv = floorf(v * 100.0f) / 100.0f; /* Round down to XX.XX */
-  //Usart2_Printf("Current is %f A\r\n", v);
+//Usart2_Printf("Current is %f A\r\n", v);
   if((ssm.mode == SSM_COOLANT_HEATER_CURRENT || ssm.mode == SSM_HEATER_FORCE_ON) && 
       ssm.heaterCurrent != rv) {
-//Usart2_Printf("Current is %f A\r\n", v);    
     ssm.heaterCurrent = rv;
     ssm.refresh = true;
   }
@@ -651,18 +538,18 @@ void Ssm_Update()
 
 void Ssm_HeaterOn()
 {
-        if(ssm.heaterOn == false)
-          IBus_RedrawIkeScreen("Heater On");
-        GPIO_SetBits(GPIOA, GPIO_Pin_1);  // turn on heater
-        ssm.heaterOn = true;
+  if(ssm.heaterOn == false)
+    IBus_RedrawIkeScreen("Heater On");
+  GPIO_SetBits(GPIOA, GPIO_Pin_1);  // turn on heater
+  ssm.heaterOn = true;
 }
 
 void Ssm_HeaterOff()
 {
-        if(ssm.heaterOn == true)
-          IBus_RedrawIkeScreen("Heater Off");
-        GPIO_ResetBits(GPIOA, GPIO_Pin_1);  // turn off heater
-        ssm.heaterOn = false;  
+  if(ssm.heaterOn == true)
+    IBus_RedrawIkeScreen("Heater Off");
+  GPIO_ResetBits(GPIOA, GPIO_Pin_1);  // turn off heater
+  ssm.heaterOn = false;  
 }
 
 /*
@@ -673,7 +560,6 @@ void IBus_DecodeIke(const uint8_t *p)
 {
   static uint16_t speed = 0;
   static uint16_t rpm = 0;
-  //static bool heater = false;
 
   switch(p[3]) { /* Message ID */
     case 0x18: { /* Speed & RPM */
@@ -734,7 +620,8 @@ rr = revs / 100 rpm
         tt = MININUM_COOLANT_TEMPERATURE;
 
       int8_t ct = p[5]; /* coolant temperature */
-      if(rpm == 0 || (ct < tt && ssm.heaterForceOn == false)) /* Do NOT enable thermostat heater while engine stopped */
+      if(rpm == 0 || /* Do NOT enable thermostat heater while engine stopped */
+        (ct < tt && ssm.heaterForceOn == false)) 
         Ssm_HeaterOff();
       else
         Ssm_HeaterOn();
@@ -825,8 +712,13 @@ void IBus_DecodeMfl(const uint8_t *p)
     }
 
     if(ssm.mode == SSM_DISABLED) {
-      IBus_RedrawRadioScreen("");
-      IBus_RedrawBcScreen("BMW E38 Individual");
+      //IBus_RedrawRadioScreen("");
+      if(radioScreenCommandSize > 0)
+        IBus_SendRaw2(radioScreenCommand, radioScreenCommandSize);
+      if(bcScreenCommandSize > 0)
+        IBus_SendRaw2(bcScreenCommand, bcScreenCommandSize);
+
+      //IBus_RedrawBcScreen("BMW E38 Individual");
 #if 0      
       uint8_t d1[] = { 0x23, 0x40, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
       IBus_Send2(0x68, 0xe7, d1, 14); /* Display on ANZV OBC TextBar */
@@ -836,8 +728,6 @@ void IBus_DecodeMfl(const uint8_t *p)
     } else if(ssm.mode == SSM_HEATER_FORCE_ON) {
       IBus_RedrawBcScreen("Force Heater On");
     } else {
-      //IBus_RedrawIkeScreen("BMW E38 Individual");   
-      //IBus_RedrawBcScreen("BMW E38 Individual");
       IBus_RedrawBcScreen("");
     }
     Ssm_Update();
@@ -854,7 +744,6 @@ void IBus_DecodeRad(uint8_t *p)
     if((p[3] == 0x21 || p[3] == 0x23) && (p[4] == 0x40 || p[4] == 0xc0 || p[4] == 0x80))
       ssm.radioOn = true;
   }
-
 //Usart2_Printf("\r\nRadio Power %s\r\n", ssm.radioOn ? "On" : "Off");
 }
 
@@ -902,104 +791,7 @@ void IBus_DecodeMid(uint8_t *p)
   }
 }
 
-/*
-*
-*/
-
-int Shell_Run(Shell *s)
-{
-  if(s->len == 0)
-    return -1;
-
-  int ret = -1;
-
-  char *p = 0;
-#define MAX_ARGC 16 
-  char *argv[MAX_ARGC];
-  uint16_t argc = 0;
-
-  int i;
-  for(i=(s->len-1);i>=0;i--) {
-    if(s->data[i] <= 0x20 || s->data[i] > 0x7e) {
-      s->data[i] = '\0'; /* Strip back */
-      s->len--;
-    } else
-      break;
-  }
-
-  for(i=0;i<s->len;i++) {
-    if(s->data[i] > 0x20 && s->data[i] <= 0x7e)
-      break; 
-    s->data[i] = '\0'; /* Strip front */
-    s->len--;
-  }
-
-  p = &s->data[i];
-  i = 0;
-  while(i < s->len) {
-    if(p[i] == 0x20) {
-      p[i++] = '\0';
-      continue;
-    }
-    argv[argc++] = &p[i++];
-    while(p[i] > 0x20 && p[i] <= 0x7e)
-      i++;
-    p[i++] = '\0'; /* end string */
-    if(argc >= MAX_ARGC)
-      break;
-  }
-#if 0
-  for(i=0;i<argc;i++) {
-    Usart2_Printf("\r\nargv[%d] = %s", i, argv[i]); 
-  }
-#endif
-  if(strcmp("help", argv[0]) == 0)
-    ret = IBus_Help();
-#if 0
-  else if(strcmp("src", argv[0]) == 0)
-    ret = IBus_SetupSource(argc, argv);
-  else if(strcmp("dest", argv[0]) == 0)
-    ret = IBus_SetupDestination(argc, argv);
-#endif    
-  else if(strcmp("recv", argv[0]) == 0)
-    ret = IBus_StartReceive(argc, argv);
-  else if(strcmp("stop", argv[0]) == 0)
-    ret = IBus_StopReceive(argc, argv);
-  else if(strcmp("mode", argv[0]) == 0) {
-    IBus_DecodeMfl(BTN_TELEPHONE_RELEASED);
-    ret = 0;
-  }
-/*  
-  else if(strcmp("send", argv[0]) == 0) {
-    if(argc > 2 && strcmp("raw", argv[1]) == 0)
-      ret = IBus_SendRaw(argc, argv);
-    else
-      ret = IBus_Send(argc, argv);
-  }
-*/
-  Shell_InputReset(s);
-
-  return ret;
-}
-
-static Shell shell;
-
-/** @addtogroup STM32F10x_StdPeriph_Examples
-  * @{
-  */
-
-/** @addtogroup GPIO_IOToggle
-  * @{
-  */
-
-/* Private typedef -----------------------------------------------------------*/
-/* Private define ------------------------------------------------------------*/
-/* Private macro -------------------------------------------------------------*/
-/* Private variables ---------------------------------------------------------*/
 GPIO_InitTypeDef GPIO_InitStructure;
-
-/* Private function prototypes -----------------------------------------------*/
-/* Private functions ---------------------------------------------------------*/
 
 /*
 *
@@ -1046,31 +838,7 @@ void Tim4_Enable(void)
 {
   TIM_Cmd(TIM4, ENABLE);
 }
-#if 0
-static uint32_t tim4Tick_1ms = 0;
 
-void Tim4_1ms(void)
-{
-}
-
-static uint32_t tim4Tick_10ms = 0;
-
-void Tim4_10ms(void)
-{
-}
-
-static uint32_t tim4Tick_50ms = 0;
-
-void Tim4_50ms(void)
-{  
-}
-
-static uint32_t tim4Tick_100ms = 0;
-
-void Tim4_100ms(void)
-{
-}
-#endif
 static uint32_t tim4Tick_200ms = 0;
 
 void Tim4_200ms(void)
@@ -1093,22 +861,9 @@ static uint32_t tim4Tick_1000ms = 0;
 
 void Tim4_1000ms(void)
 {
-#if 0
-  static bool ledSwitch = true;
-  if(ledSwitch)
-    GPIO_ResetBits(GPIOA, GPIO_Pin_1);  // turn off all led
-  else
-    GPIO_SetBits(GPIOA, GPIO_Pin_1);  // turn on all led
-
-  ledSwitch = !ledSwitch;
-#endif
-/*  
-  uint8_t d2[] = { 0x3b, 0x01 };
-  IBus_Send2(0x50, 0x68, d2, 2);
-*/
   if(tim4Tick_1000ms == 2) { /* Show log ONLY after 2 secs of power on */
     //IBus_RedrawIkeScreen("BMW E38 Individual");
-    IBus_RedrawBcScreen("BMW E38 Individual");
+    IBus_RedrawBcScreen("BMW E38 OpenBTD");
   }
 
   Ssm_Update();
@@ -1156,12 +911,20 @@ int main(void)
 
   ADC1_Init();
 
+#ifdef PWM_FAN
   Pwm_Init();
   Pwm1_Reverse();
   //Pwm1_Pulse(10 * PwmPulseMax / 100);
   Pwm1_Pulse(0);
+#else
+  GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_0;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;       // 复用推挽输出
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_Init(GPIOA, &GPIO_InitStructure);
+  GPIO_SetBits(GPIOA, GPIO_Pin_0); /* pull high, in order to low down 12V PWM output */
+#endif
 
-#if 0
+#ifdef GLCD
   Glcd_Init(55, 0x04);
 #endif
   Tim4_Init();
@@ -1170,21 +933,13 @@ int main(void)
   Usart2_Init(9600);
 #else  
   Usart2_Init(115200);
-  Usart2_Puts("\r\nIBus Inspector v0.0.2");
+  Usart2_Puts("\r\nOpenBTD v0.1");
   Usart2_Puts("\r\nAuthor : Steve Chang");
-  Usart2_Puts("\r\n26th October 2017");
-
-  Usart2_Puts("\r\nIBus\\> ");
+  Usart2_Puts("\r\n27th Auguest 2017");
 #endif
   Usart3_Init(9600);
 
   Ssm_Init();
-#if 0
-  uint32_t tick_1ms = tim4Tick_1ms;
-  uint32_t tick_10ms = tim4Tick_10ms;
-  uint32_t tick_50ms = tim4Tick_50ms;
-  uint32_t tick_100ms = tim4Tick_100ms;
-#endif  
   uint32_t tick_200ms = tim4Tick_200ms;
   uint32_t tick_1000ms = tim4Tick_1000ms;
 
@@ -1203,27 +958,6 @@ int main(void)
     if(len > 0)
       Usart3_Write(Usart2_Gets(), len);
 #else
-#if 0    
-    if(tick_1ms != tim4Tick_1ms) {
-      tick_1ms = tim4Tick_1ms;
-      Tim4_1ms();
-    }
-
-    if(tick_10ms != tim4Tick_10ms) {
-      tick_10ms = tim4Tick_10ms;
-      Tim4_10ms();
-    }
-
-    if(tick_50ms != tim4Tick_50ms) {
-      tick_50ms = tim4Tick_50ms;
-      Tim4_50ms();
-    }
-
-    if(tick_100ms != tim4Tick_100ms) {
-      tick_100ms = tim4Tick_100ms;
-      Tim4_100ms();
-    }
-#endif
     if(tick_200ms != tim4Tick_200ms) {
       tick_200ms = tim4Tick_200ms;
       Tim4_200ms();
@@ -1236,35 +970,11 @@ int main(void)
 
     int len = Usart2_Poll();
     if(len > 0) {
-      uint8_t *p = (uint8_t *)Usart2_Gets();
-#if 1      
-      int i;
-      for(i=0;i<len;i++) {
-        if(p[i] == 0xd) { /* CR */
-          char *sc = Shell_InputString(&shell);
-          if(sc)
-            if(Shell_Run(&shell) == -1)
-              Usart2_Puts("\r\nIllegal command\r\nIBus\\> ");
-            else
-              Usart2_Puts("\r\nIBus\\> ");
-          else
-            Usart2_Puts("\r\nIBus\\> ");
-        } else if((p[i] >= 0x20 && p[i] <= 0x7e) || p[i] == 0x8) {
-          if(p[i] == 0x8) /*backspace */
-            Usart2_Puts("\b \b"); /* backspace + space + backspace */
-          else 
-            Usart2_Write((uint8_t *)&p[i], 1);
-          Shell_Input(&shell, p[i]);
-        }
-      }
-#endif      
+      uint8_t *p = (uint8_t *)Usart2_Gets();      
     }
 
     len = Usart3_Poll();
-/*    
-      if(len > 0) 
-        Usart2_Write(Usart3_Gets(), len);
-*/
+
     if(len > 0) {
       char *p = Usart3_Gets();
 
@@ -1282,33 +992,20 @@ int main(void)
           IBus_DecodeMid(&p[0]);
           break;
       }
-#if 1
-      if(IBus_State() == ibusStop)
-        continue;
-#if 0
-      if(p[0] != IBus_ValidSource(p[0]) ||
-        p[2] != IBus_ValidDestination(p[2]))
-        continue;
-#endif
-      Usart2_Puts("\r\n");
 
-      int i;
-      for(i=0;i<len;i++) {
-        Usart2_Write((uint8_t *)hextoa(p[i]), 2);
-        Usart2_Write((uint8_t *)" ", 1);
-        if(i == 2 || i == (len - 2))
-          Usart2_Write((uint8_t *)"| ", 2);
+      if(p[0] == RAD && p[2] == ANZV && 
+          p[3] == 0x23) { /* Display title field */
+        memcpy(radioScreenCommand, &p[0], len);
+        radioScreenCommandSize = len;
+      } else if(p[0] == IKE && p[2] == MID && 
+          p[3] == 0x23 && p[4] == 0x01) { /* BC field */
+        memcpy(bcScreenCommand, &p[0], len);
+        bcScreenCommandSize = len;
+      } else if(p[0] == IKE && p[2] == ANZV &&
+          p[3] == 0x24) { /* BC field */
+        memcpy(bcScreenCommand, &p[0], len);
+        bcScreenCommandSize = len;        
       }
-      Usart2_Puts("\r\n");
-      Usart2_Printf(" %s --> %s : ", ibus_device_alias(p[0]), ibus_device_alias(p[2]));
-      for(i=0;i<len;i++) {
-        if(p[i] < 0x20 || p[i] > 0x7e)
-          Usart2_Write((uint8_t *)".", 1);
-        else
-          Usart2_Write((uint8_t *)&p[i], 1);
-      }
-      Usart2_Puts("\r\n");
-#endif          
     }
 #endif
   }
@@ -1340,15 +1037,6 @@ void TIM4_IRQHandler(void)
 {
   if(TIM_GetITStatus(TIM4, TIM_IT_Update) != RESET) {
     tim4Tick++;
-#if 0    
-    tim4Tick_1ms++;
-    if(tim4Tick % 10 == 0)
-      tim4Tick_10ms++;
-    if(tim4Tick % 50 == 0)
-      tim4Tick_50ms++;
-    if(tim4Tick % 100 == 0)
-      tim4Tick_100ms++;
-#endif      
     if(tim4Tick % 200 == 0)
       tim4Tick_200ms++;
     if(tim4Tick % 1000 == 0)
@@ -1360,18 +1048,6 @@ void TIM4_IRQHandler(void)
 #ifdef USART3_LIN_BUS
     usart3_idle_tick++;
 #endif
-    //
-    // 清除 TIM4
     TIM_ClearITPendingBit(TIM4, /*TIM_IT_Update*/ TIM_FLAG_Update);
   }
 }
-
-/**
-  * @}
-  */
-
-/**
-  * @}
-  */
-
-/******************* (C) COPYRIGHT 2011 STMicroelectronics *****END OF FILE****/

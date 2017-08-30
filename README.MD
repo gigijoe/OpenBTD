@@ -14,6 +14,7 @@ The thermostat starts open at 105°C and full open at 108°C. During some condit
 * Coolant temperature reach 113°C
 
 
+
     +----------+
     |          |     Thermostat heater
     |   DME    |----------|><|----------12V

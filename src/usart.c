@@ -15,7 +15,7 @@
 #include "usart.h"
 #include "delay.h"
 
-#define LIN_BUS_IDLE_TICK 3
+#define LIN_BUS_IDLE_TICK 2 /* 2ms * 9.6 bits / ms = 19.2 bits */
 
 #ifndef USART_TX_DMA
 

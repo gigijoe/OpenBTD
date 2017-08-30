@@ -9,18 +9,17 @@ To help fuel consumption and part-throttle emissions, the coolant tempature of B
 ## Principle
 
 The thermostat starts open at 105°C and full open at 108°C. During some conditions DME will power thermostat heater by grounding it.
-1. Engine high load
-2. High intake air temperature
-3. Coolant temperature reach 113°C
     
-
-
     +----------+
     |          |     Thermostat heater
     |   DME    |----------|><|----------12V
     +-----+----+
           |
          GND
+
+1. Engine high load
+2. High intake air temperature
+3. Coolant temperature reach 113°C
 
 ## Modification
 

@@ -471,6 +471,26 @@ void Ssm_Init()
   ssm.VolumeDownTick = 0;
 }
 
+void Ssm_HeaterOn()
+{
+  if(ssm.heaterOn == false)
+    IBus_RedrawIkeScreen("Heater On");
+  GPIO_SetBits(GPIOA, GPIO_Pin_1);  // turn on heater
+  ssm.heaterOn = true;
+}
+
+void Ssm_HeaterOff(char *reason)
+{
+  if(ssm.heaterOn == true) {
+    if(reason)
+      IBus_RedrawIkeScreen(reason);
+    else
+      IBus_RedrawIkeScreen("Heater Off");
+  }
+  GPIO_ResetBits(GPIOA, GPIO_Pin_1);  // turn off heater
+  ssm.heaterOn = false;  
+}
+
 void Ssm_Update()
 {
   if(ssm.mode == SSM_DISABLED)
@@ -486,6 +506,11 @@ void Ssm_Update()
     ssm.heaterCurrent = rv;
     ssm.refresh = true;
   }
+
+  if(ssm.heaterCurrent >= 2.0f) { /* Should be around 1A. Over 2A may be short !!! */
+    Ssm_HeaterOff("Heater Off : Over Current");
+  }
+
 
   v = (float) ADC_SLOT[0] / 4096 * 3.3 * ((2.62 + 9.98) / 2.62);
   rv = floorf(v * 10.0f) / 10.0f; /* Round down to XX.X */
@@ -520,9 +545,9 @@ void Ssm_Update()
     memcpy(&d[9], vs, 4);
     d[14] = 'V';
   } else if(ssm.mode == SSM_COOLANT_HEATER_CURRENT || ssm.mode == SSM_HEATER_FORCE_ON) {
-    char vs[6];
-    snprintf(vs, 6, "%f", ssm.heaterCurrent);
-    memcpy(&d[9], vs, 5);
+    char vs[5];
+    snprintf(vs, 5, "%f", ssm.heaterCurrent);
+    memcpy(&d[9], vs, 4);
     d[14] = 'A';
   } else if(ssm.mode == SSM_SETUP_COOLANT_TEMPERATURE) {
     char vs[4];
@@ -534,22 +559,6 @@ void Ssm_Update()
   IBus_Send2(0x68, 0xe7, d, 17); /* Display water temperture on ANZV OBC TextBar */
 
   ssm.refresh = false;
-}
-
-void Ssm_HeaterOn()
-{
-  if(ssm.heaterOn == false)
-    IBus_RedrawIkeScreen("Heater On");
-  GPIO_SetBits(GPIOA, GPIO_Pin_1);  // turn on heater
-  ssm.heaterOn = true;
-}
-
-void Ssm_HeaterOff()
-{
-  if(ssm.heaterOn == true)
-    IBus_RedrawIkeScreen("Heater Off");
-  GPIO_ResetBits(GPIOA, GPIO_Pin_1);  // turn off heater
-  ssm.heaterOn = false;  
 }
 
 /*
@@ -588,20 +597,22 @@ rr = revs / 100 rpm
       if(ot < 10)
         dt = 0;
       else if(ot < 20)
-        dt = 3;
+        dt = 1;
       else if(ot < 30)
-        dt = 6;
+        dt = 2;
       else if(ot < 40)
-        dt = 9;
+        dt = 3;
 
       tt -= dt;
 
       if(rpm < 3000)
         dt = 0;
+      else if(rpm < 4000)
+        dt = 1;
       else if(rpm < 5000)
-        dt = 3;
+        dt = 2;
       else
-        dt = 6;
+        dt = 3;
 
       tt -= dt;
 #if 0
@@ -622,7 +633,7 @@ rr = revs / 100 rpm
       int8_t ct = p[5]; /* coolant temperature */
       if(rpm == 0 || /* Do NOT enable thermostat heater while engine stopped */
         (ct < tt && ssm.heaterForceOn == false)) 
-        Ssm_HeaterOff();
+        Ssm_HeaterOff(0);
       else
         Ssm_HeaterOn();
 
@@ -698,7 +709,7 @@ void IBus_DecodeMfl(const uint8_t *p)
 #endif
     if(ssm.mode == SSM_HEATER_FORCE_ON) {
       ssm.heaterForceOn = false;
-      Ssm_HeaterOff(); /* To turn again by IKE */      
+      Ssm_HeaterOff(0); /* To turn again by IKE */      
     }
 
     if(++ssm.mode == SSM_UNKNOWN)

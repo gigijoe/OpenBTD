@@ -1009,11 +1009,11 @@ int main(void)
         memcpy(radioScreenCommand, &p[0], len);
         radioScreenCommandSize = len;
       } else if(p[0] == IKE && p[2] == MID && 
-          p[3] == 0x23 && p[4] == 0x01) { /* BC field */
+          p[3] == 0x23 && (p[4] == 0x01 || p[4] == 0x04)) { /* Clock and BC field */
         memcpy(bcScreenCommand, &p[0], len);
         bcScreenCommandSize = len;
       } else if(p[0] == IKE && p[2] == ANZV &&
-          p[3] == 0x24) { /* BC field */
+          p[3] == 0x24 && p[4] == 0x01) { /* Clock field */
         memcpy(bcScreenCommand, &p[0], len);
         bcScreenCommandSize = len;        
       }

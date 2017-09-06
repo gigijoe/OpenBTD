@@ -50,16 +50,16 @@ The BTD is the device that reads coolant temperature from IKE through I-Bus and 
 
 ## Feature
 
-1.Thermostat heater power on / off.
-2.Heater power on before coolant temperature reaching target temperature.
-3.Heater power off after coolant temperature lower then dynamic target temperature
-4.Dynamic target temperature is variable depend on engine RPM, speed and out side temperature.
-5.Heater current sensing.
-6.Force heater on.
-7.Adjustable target temperature.
-8.Display voltage, coolant temperature / heater current on MID screen
-9.Display heater on / off on IKE screen
-10.Operation by MFL (Multi Functional Steering Wheel Buttons).
+1. Thermostat heater power on / off.
+2. Heater power on before coolant temperature reaching target temperature.
+3. Heater power off after coolant temperature lower then dynamic target temperature
+4. Dynamic target temperature is variable depend on engine RPM, speed and out side temperature.
+5. Heater current sensing.
+6. Force heater on.
+7. Adjustable target temperature.
+8. Display voltage, coolant temperature / heater current on MID screen
+9. Display heater on / off on IKE screen
+10. Operation by MFL (Multi Functional Steering Wheel Buttons).
 
 ## Hardware
 

@@ -367,7 +367,8 @@ int IBus_Send2(uint8_t src, uint8_t dest, uint8_t *data, uint8_t dataLen)
 
 int IBus_SendRaw2(uint8_t *raw, uint8_t len)
 {
-  Usart3_Write(&raw[0], len);
+  if(raw && len > 0)
+    Usart3_Write(&raw[0], len);
 
   return 0;
 }
@@ -471,10 +472,14 @@ void Ssm_Init()
   ssm.VolumeDownTick = 0;
 }
 
-void Ssm_HeaterOn()
+void Ssm_HeaterOn(char *reason)
 {
-  if(ssm.heaterOn == false)
-    IBus_RedrawIkeScreen("Heater On");
+  if(ssm.heaterOn == false) {
+    if(reason)
+      IBus_RedrawIkeScreen(reason);
+    else
+      IBus_RedrawIkeScreen("Heater On");
+  }
   GPIO_SetBits(GPIOA, GPIO_Pin_1);  // turn on heater
   ssm.heaterOn = true;
 }
@@ -635,7 +640,7 @@ rr = revs / 100 rpm
         (ct < tt && ssm.heaterForceOn == false)) 
         Ssm_HeaterOff(0);
       else
-        Ssm_HeaterOn();
+        Ssm_HeaterOn(0);
 
       if(ssm.temperture != ct) {
         ssm.temperture = ct;
@@ -707,9 +712,16 @@ void IBus_DecodeMfl(const uint8_t *p)
     uint8_t d2[] = { 0x23, 0x01, 0x20, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30 };
     IBus_Send2(0x80, 0xe7, d2, 23); /* Display "12345678901234567890" on ANZV OBC TextBar - BC Screen (20) */    
 #endif
+#if 0      
+      uint8_t d1[] = { 0x23, 0x40, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
+      IBus_Send2(0x68, 0xe7, d1, 14); /* Display on ANZV OBC TextBar */
+#endif      
+
     if(ssm.mode == SSM_HEATER_FORCE_ON) {
       ssm.heaterForceOn = false;
-      Ssm_HeaterOff(0); /* To turn again by IKE */      
+      Ssm_HeaterOff(0); /* To turn on again by IKE */      
+    } else if(ssm.mode == SSM_SETUP_COOLANT_TEMPERATURE) {
+        IBus_SendRaw2(bcScreenCommand, bcScreenCommandSize);
     }
 
     if(++ssm.mode == SSM_UNKNOWN)
@@ -717,30 +729,16 @@ void IBus_DecodeMfl(const uint8_t *p)
     else
       ssm.refresh = true;
 
-    if(ssm.mode == SSM_HEATER_FORCE_ON) {
-      ssm.heaterForceOn = true;
-      Ssm_HeaterOn();
-    }
-
     if(ssm.mode == SSM_DISABLED) {
       //IBus_RedrawRadioScreen("");
-      if(radioScreenCommandSize > 0)
-        IBus_SendRaw2(radioScreenCommand, radioScreenCommandSize);
-      if(bcScreenCommandSize > 0)
-        IBus_SendRaw2(bcScreenCommand, bcScreenCommandSize);
-
-      //IBus_RedrawBcScreen("BMW E38 Individual");
-#if 0      
-      uint8_t d1[] = { 0x23, 0x40, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
-      IBus_Send2(0x68, 0xe7, d1, 14); /* Display on ANZV OBC TextBar */
-#endif      
+      IBus_SendRaw2(radioScreenCommand, radioScreenCommandSize);
     } else if(ssm.mode == SSM_SETUP_COOLANT_TEMPERATURE) {
       IBus_RedrawBcScreen("Setup Temperature +/-");
     } else if(ssm.mode == SSM_HEATER_FORCE_ON) {
-      IBus_RedrawBcScreen("Force Heater On");
-    } else {
-      IBus_RedrawBcScreen("");
+      ssm.heaterForceOn = true;
+      Ssm_HeaterOn("Force Heater On");
     }
+
     Ssm_Update();
   }
 }
@@ -850,6 +848,16 @@ void Tim4_Enable(void)
   TIM_Cmd(TIM4, ENABLE);
 }
 
+static uint32_t tim4Tick_100ms = 0;
+
+void Tim4_100ms(void)
+{
+  if(ssm.VolumeUpTick > 0)
+    ssm.VolumeUpTick--;
+  if(ssm.VolumeDownTick > 0)
+    ssm.VolumeDownTick--;  
+}
+
 static uint32_t tim4Tick_200ms = 0;
 
 void Tim4_200ms(void)
@@ -861,11 +869,6 @@ void Tim4_200ms(void)
     GPIO_SetBits(GPIOB, GPIO_Pin_12);  // turn on all led
 
   ledSwitch = !ledSwitch;
-
-  if(ssm.VolumeUpTick > 0)
-    ssm.VolumeUpTick--;
-  if(ssm.VolumeDownTick > 0)
-    ssm.VolumeDownTick--;  
 }
 
 static uint32_t tim4Tick_1000ms = 0;
@@ -873,8 +876,8 @@ static uint32_t tim4Tick_1000ms = 0;
 void Tim4_1000ms(void)
 {
   if(tim4Tick_1000ms == 2) { /* Show log ONLY after 2 secs of power on */
-    //IBus_RedrawIkeScreen("BMW E38 Individual");
-    IBus_RedrawBcScreen("BMW E38 OpenBTD");
+    IBus_RedrawIkeScreen("BMW E38 Individual");
+    //IBus_RedrawBcScreen("BMW E38 OpenBTD");
   }
 
   Ssm_Update();
@@ -951,6 +954,7 @@ int main(void)
   Usart3_Init(9600);
 
   Ssm_Init();
+  uint32_t tick_100ms = tim4Tick_100ms;
   uint32_t tick_200ms = tim4Tick_200ms;
   uint32_t tick_1000ms = tim4Tick_1000ms;
 
@@ -969,6 +973,11 @@ int main(void)
     if(len > 0)
       Usart3_Write(Usart2_Gets(), len);
 #else
+    if(tick_100ms != tim4Tick_100ms) {
+      tick_100ms = tim4Tick_100ms;
+      Tim4_100ms();
+    }
+
     if(tick_200ms != tim4Tick_200ms) {
       tick_200ms = tim4Tick_200ms;
       Tim4_200ms();
@@ -1048,6 +1057,8 @@ void TIM4_IRQHandler(void)
 {
   if(TIM_GetITStatus(TIM4, TIM_IT_Update) != RESET) {
     tim4Tick++;
+    if(tim4Tick % 100 == 0)
+      tim4Tick_100ms++;
     if(tim4Tick % 200 == 0)
       tim4Tick_200ms++;
     if(tim4Tick % 1000 == 0)

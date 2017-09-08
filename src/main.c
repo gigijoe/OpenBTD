@@ -367,14 +367,10 @@ int IBus_Send2(uint8_t src, uint8_t dest, uint8_t *data, uint8_t dataLen)
 
 int IBus_SendRaw2(uint8_t *raw, uint8_t len)
 {
-  if(raw && len > 0)
-    Usart3_Write(&raw[0], len);
+  Usart3_Write(&raw[0], len);
 
   return 0;
 }
-
-static uint8_t radioScreenCommand[MAX_RX_LEN] = {0};
-static uint8_t radioScreenCommandSize = 0;
 
 void IBus_RedrawRadioScreen(char *text)
 {
@@ -444,6 +440,7 @@ void IBus_RedrawIkeScreen(char *text)
 #define MININUM_COOLANT_TEMPERATURE 85
 
 typedef enum { SSM_DISABLED, SSM_COOLANT_VOLTAGE, SSM_COOLANT_HEATER_CURRENT, SSM_SETUP_COOLANT_TEMPERATURE, SSM_HEATER_FORCE_ON, SSM_UNKNOWN } SsmMode;
+typedef enum { HEATER_OK, HEATER_SHORT, HEATER_OPEN, HEATER_FADE, HEATER_OVER_CURRENT } HeaterStatus;
 
 typedef struct {
   SsmMode mode;
@@ -453,6 +450,8 @@ typedef struct {
   uint8_t temperture, targetTemperature;
   float voltage, heaterCurrent;
   uint8_t VolumeUpTick, VolumeDownTick;
+  uint8_t currentSenseDelay;
+  HeaterStatus heaterStatus;
 } Ssm;
 
 static Ssm ssm; 
@@ -470,6 +469,8 @@ void Ssm_Init()
   ssm.heaterCurrent = 0.0f;
   ssm.VolumeUpTick = 0;
   ssm.VolumeDownTick = 0;
+  ssm.currentSenseDelay = 0;
+  ssm.heaterStatus = HEATER_OK;
 }
 
 void Ssm_HeaterOn(char *reason)
@@ -482,6 +483,8 @@ void Ssm_HeaterOn(char *reason)
   }
   GPIO_SetBits(GPIOA, GPIO_Pin_1);  // turn on heater
   ssm.heaterOn = true;
+
+  ssm.currentSenseDelay = 1; /* 1s */
 }
 
 void Ssm_HeaterOff(char *reason)
@@ -493,14 +496,13 @@ void Ssm_HeaterOff(char *reason)
       IBus_RedrawIkeScreen("Heater Off");
   }
   GPIO_ResetBits(GPIOA, GPIO_Pin_1);  // turn off heater
-  ssm.heaterOn = false;  
+  ssm.heaterOn = false;
+
+  ssm.currentSenseDelay = 1; /* 1s */
 }
 
 void Ssm_Update()
 {
-  if(ssm.mode == SSM_DISABLED)
-    return;
-
   float v, rv;
 
   v = (float) ADC_SLOT[1] / 4096 * 3.3 / 0.582;
@@ -508,14 +510,10 @@ void Ssm_Update()
 //Usart2_Printf("Current is %f A\r\n", v);
   if((ssm.mode == SSM_COOLANT_HEATER_CURRENT || ssm.mode == SSM_HEATER_FORCE_ON) && 
       ssm.heaterCurrent != rv) {
-    ssm.heaterCurrent = rv;
     ssm.refresh = true;
   }
 
-  if(ssm.heaterCurrent >= 2.0f) { /* Should be around 1A. Over 2A may be short !!! */
-    Ssm_HeaterOff("Heater Off : Over Current");
-  }
-
+  ssm.heaterCurrent = rv;
 
   v = (float) ADC_SLOT[0] / 4096 * 3.3 * ((2.62 + 9.98) / 2.62);
   rv = floorf(v * 10.0f) / 10.0f; /* Round down to XX.X */
@@ -528,19 +526,10 @@ void Ssm_Update()
 
   if(ssm.refresh == false)
     return;
-#if 0
-/* Thermostat Heater = TH */
-  if(ssm.heaterOn == false && ssm.heaterCurrent > 0.01f) {
-    IBus_RedrawIkeScreen("Heater : Error Short");
-  }
 
-  if(ssm.heaterOn == true) {
-    if(ssm.heaterCurrent < 0.01)
-      IBus_RedrawIkeScreen("Heater : Error Power");
-    else if(ssm.heaterCurrent < 0.5)
-      IBus_RedrawIkeScreen("Heater : Warning Fade");
-  }
-#endif
+  if(ssm.mode == SSM_DISABLED)
+    return;
+
   uint8_t d[] = { 0x23, 0x00, 0x20, 0x58, 0x58, 0x58, 0x43, 0x20, 0x03, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x04 };
   memcpy(&d[3], hextodec(ssm.temperture), 3);
 
@@ -555,10 +544,11 @@ void Ssm_Update()
     memcpy(&d[9], vs, 4);
     d[14] = 'A';
   } else if(ssm.mode == SSM_SETUP_COOLANT_TEMPERATURE) {
+    memcpy(&d[3], " +/-", 4);
     char vs[4];
     snprintf(vs, 4, "%d", ssm.targetTemperature);
     memcpy(&d[10], vs, 3);
-    d[14] = 'C';    
+    d[14] = 'C';
   }
 
   IBus_Send2(0x68, 0xe7, d, 17); /* Display water temperture on ANZV OBC TextBar */
@@ -620,18 +610,18 @@ rr = revs / 100 rpm
         dt = 3;
 
       tt -= dt;
-#if 0
+
       if(speed == 0)
-        dt = 9;
-      else if(speed < 60)
-        dt = 6;
-      else if(dt < 120)
         dt = 3;
+      else if(speed < 60)
+        dt = 2;
+      else if(dt < 120)
+        dt = 1;
       else
         dt = 0;
 
       tt -= dt;
-#endif
+
       if(tt < MININUM_COOLANT_TEMPERATURE)
         tt = MININUM_COOLANT_TEMPERATURE;
 
@@ -712,16 +702,9 @@ void IBus_DecodeMfl(const uint8_t *p)
     uint8_t d2[] = { 0x23, 0x01, 0x20, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30 };
     IBus_Send2(0x80, 0xe7, d2, 23); /* Display "12345678901234567890" on ANZV OBC TextBar - BC Screen (20) */    
 #endif
-#if 0      
-      uint8_t d1[] = { 0x23, 0x40, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
-      IBus_Send2(0x68, 0xe7, d1, 14); /* Display on ANZV OBC TextBar */
-#endif      
-
     if(ssm.mode == SSM_HEATER_FORCE_ON) {
       ssm.heaterForceOn = false;
-      Ssm_HeaterOff(0); /* To turn on again by IKE */      
-    } else if(ssm.mode == SSM_SETUP_COOLANT_TEMPERATURE) {
-        IBus_SendRaw2(bcScreenCommand, bcScreenCommandSize);
+      Ssm_HeaterOff(0); /* To turn again by IKE */      
     }
 
     if(++ssm.mode == SSM_UNKNOWN)
@@ -730,10 +713,7 @@ void IBus_DecodeMfl(const uint8_t *p)
       ssm.refresh = true;
 
     if(ssm.mode == SSM_DISABLED) {
-      //IBus_RedrawRadioScreen("");
-      IBus_SendRaw2(radioScreenCommand, radioScreenCommandSize);
-    } else if(ssm.mode == SSM_SETUP_COOLANT_TEMPERATURE) {
-      IBus_RedrawBcScreen("Setup Temperature +/-");
+      IBus_RedrawRadioScreen("");
     } else if(ssm.mode == SSM_HEATER_FORCE_ON) {
       ssm.heaterForceOn = true;
       Ssm_HeaterOn("Force Heater On");
@@ -855,7 +835,7 @@ void Tim4_100ms(void)
   if(ssm.VolumeUpTick > 0)
     ssm.VolumeUpTick--;
   if(ssm.VolumeDownTick > 0)
-    ssm.VolumeDownTick--;  
+    ssm.VolumeDownTick--;
 }
 
 static uint32_t tim4Tick_200ms = 0;
@@ -877,10 +857,33 @@ void Tim4_1000ms(void)
 {
   if(tim4Tick_1000ms == 2) { /* Show log ONLY after 2 secs of power on */
     IBus_RedrawIkeScreen("BMW E38 Individual");
-    //IBus_RedrawBcScreen("BMW E38 OpenBTD");
   }
 
   Ssm_Update();
+
+  if(ssm.currentSenseDelay == 0) {
+    if(ssm.heaterCurrent >= 2.0f) { /* Should be around 1A. Over 2A may be short !!! */
+      if(ssm.heaterStatus != HEATER_OVER_CURRENT)
+        Ssm_HeaterOff("Heater Off : Over Current");
+      ssm.heaterStatus = HEATER_OVER_CURRENT;
+    } else if(ssm.heaterOn == false && ssm.heaterCurrent > 0.01) {
+      if(ssm.heaterStatus != HEATER_SHORT)
+        IBus_RedrawIkeScreen("Heater : Short Circuit");
+      ssm.heaterStatus = HEATER_SHORT;
+    } else if(ssm.heaterOn == true) {
+      if(ssm.heaterCurrent <= 0.01) {
+        if(ssm.heaterStatus != HEATER_OPEN)
+          IBus_RedrawIkeScreen("Heater : Open Curcuit");
+        ssm.heaterStatus = HEATER_OPEN;
+      } else if(ssm.heaterCurrent < 0.5) {
+        if(ssm.heaterStatus != HEATER_FADE)
+          IBus_RedrawIkeScreen("Heater : Fade");
+        ssm.heaterStatus = HEATER_FADE;
+      }
+    } else
+      ssm.heaterStatus = HEATER_OK;
+  } else
+    ssm.currentSenseDelay--;
 }
 
 /**
@@ -1012,7 +1015,7 @@ int main(void)
           IBus_DecodeMid(&p[0]);
           break;
       }
-
+#if 0
       if(p[0] == RAD && p[2] == ANZV && 
           p[3] == 0x23) { /* Display title field */
         memcpy(radioScreenCommand, &p[0], len);
@@ -1026,6 +1029,7 @@ int main(void)
         memcpy(bcScreenCommand, &p[0], len);
         bcScreenCommandSize = len;        
       }
+#endif
     }
 #endif
   }

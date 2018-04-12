@@ -184,7 +184,6 @@ static char *ibus_device_name(uint8_t id)
     default: return "Unknown";
   }
 }
-#endif
 
 static char *ibus_device_alias(uint8_t id) 
 {
@@ -232,6 +231,8 @@ static char *ibus_device_alias(uint8_t id)
     default: return "Unknown";
   }
 }
+
+#endif
 
 #define GM 0x00 /*Body module*/
 #define SHD 0x08 /*Sunroof Control*/
@@ -639,87 +640,90 @@ rr = revs / 100 rpm
     } break;
   }
 }
-#if 0
-const uint8_t BTN_NEXT_PRESSED[] = { 0x50, 0x04, 0x68, 0x3b, 0x01, 0x06 };
-const uint8_t BTN_NEXT_RELEASED[] = { 0x50, 0x04, 0x68, 0x3b, 0x21, 0x26 };
-
-const uint8_t BTN_PREV_PRESSED[] = { 0x50, 0x04, 0x68, 0x3b, 0x08, 0x0f };
-const uint8_t BTN_PREV_RELEASED[] = { 0x50, 0x04, 0x68, 0x3b, 0x28, 0x2f };
-#endif
-const uint8_t BTN_VOLUME_UP[] = { 0x50, 0x04, 0x68, 0x32, 0x11, 0x1f };
-const uint8_t BTN_VOLUME_DOWN[] = { 0x50, 0x04, 0x68, 0x32, 0x10, 0x1e };
-
-const uint8_t BTN_RT_TELEPHONE[] = { 0x50, 0x04, 0xc8, 0x3b, 0x40, 0xe7 };
-
-const uint8_t BTN_TELEPHONE_PRESSED[] = { 0x50, 0x04, 0xc8, 0x3b, 0x80, 0x27 };
-const uint8_t BTN_TELEPHONE_RELEASED[] = { 0x50, 0x04, 0xc8, 0x3b, 0xa0, 0x07 };
 
 void IBus_DecodeMfl(const uint8_t *p)
-{ 
-#if 0 
-  if(memcmp(BTN_NEXT_PRESSED, p, 6) == 0) {
-    //GPIO_ResetBits(GPIOB, GPIO_Pin_13); /* pull low */
-  } else if(memcmp(BTN_NEXT_RELEASED, p, 6) == 0) {
-    //GPIO_SetBits(GPIOB, GPIO_Pin_13); /* pull high */
-  } else if(memcmp(BTN_PREV_PRESSED, p, 6) == 0) {
-    //GPIO_ResetBits(GPIOB, GPIO_Pin_15); /* pull low */
-  } else if(memcmp(BTN_PREV_RELEASED, p, 6) == 0) {
-    //GPIO_SetBits(GPIOB, GPIO_Pin_15); /* pull high */
-  } else 
-#endif
-  if(memcmp(BTN_VOLUME_UP, p, 6) == 0) {
-    if(ssm.VolumeUpTick > 0)
-      return;
-    ssm.VolumeUpTick = 2;
-    if(ssm.mode == SSM_SETUP_COOLANT_TEMPERATURE) {
-      if(ssm.targetTemperature < MAXIMUM_COOLANT_TEMPERATURE) {
-        ssm.targetTemperature++;
-        ssm.refresh = true;
-      }
-    }
-  } else if(memcmp(BTN_VOLUME_DOWN, p, 6) == 0) {
-    if(ssm.VolumeDownTick > 0)
-      return;
-    ssm.VolumeDownTick = 2;
-    if(ssm.mode == SSM_SETUP_COOLANT_TEMPERATURE) {
-      if(ssm.targetTemperature > MININUM_COOLANT_TEMPERATURE) {
-        ssm.targetTemperature--;
-        ssm.refresh = true;
-      }
-    }
-  } else if(memcmp(BTN_RT_TELEPHONE, p, 6) == 0) {
-  } else if(memcmp(BTN_TELEPHONE_PRESSED, p, 6) == 0) {
-  } else if(memcmp(BTN_TELEPHONE_RELEASED, p, 6) == 0) {
-#if 0
-    uint8_t d3[] = { 0x23, 0x62, 0x30, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30 };
-    IBus_Send2(0x68, 0x80, d3, 25); /* Display "12345678901234567890" on IKE - Text Screen (20) */
-#endif
-#if 0
-    uint8_t d[] = { 0x21, 0x40, 0x00, 0x09, 0x05, 0x05, 0x4D, 0x50, 0x33 };
-    IBus_Send2(0x68, 0xe7, d, 9); /* Display "MP3" on ANZV OBC TextBar - Radio Screen */
-#endif
-#if 0
-    uint8_t d2[] = { 0x23, 0x01, 0x20, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30 };
-    IBus_Send2(0x80, 0xe7, d2, 23); /* Display "12345678901234567890" on ANZV OBC TextBar - BC Screen (20) */    
-#endif
-    if(ssm.mode == SSM_HEATER_FORCE_ON) {
-      ssm.heaterForceOn = false;
-      Ssm_HeaterOff(0); /* To turn again by IKE */      
-    }
+{
+  const uint8_t BTN_NEXT_PRESSED[] = { 0x3b, 0x01, 0x06 };
+  const uint8_t BTN_NEXT_RELEASED[] = { 0x3b, 0x21, 0x26 };
 
-    if(++ssm.mode == SSM_UNKNOWN)
-      ssm.mode = SSM_DISABLED;
-    else
-      ssm.refresh = true;
+  const uint8_t BTN_PREV_PRESSED[] = { 0x3b, 0x08, 0x0f };
+  const uint8_t BTN_PREV_RELEASED[] = { 0x3b, 0x28, 0x2f };
 
-    if(ssm.mode == SSM_DISABLED) {
-      IBus_RedrawRadioScreen("");
-    } else if(ssm.mode == SSM_HEATER_FORCE_ON) {
-      ssm.heaterForceOn = true;
-      Ssm_HeaterOn("Force Heater On");
-    }
+  const uint8_t BTN_VOLUME_UP[] = { 0x32, 0x11, 0x1f };
+  const uint8_t BTN_VOLUME_DOWN[] = { 0x32, 0x10, 0x1e };
 
-    Ssm_Update();
+  const uint8_t BTN_RT_TELEPHONE_ON[] = { 0x3b, 0x40, 0xe7 };
+  const uint8_t BTN_RT_TELEPHONE_OFF[] = { 0x3b, 0x00, 0xa7 };
+
+  const uint8_t BTN_TELEPHONE_PRESSED[] = { 0x3b, 0x80, 0x27 };
+  const uint8_t BTN_TELEPHONE_KEEP_PRESSED[] = { 0x3b, 0x90, 0x37 };
+  const uint8_t BTN_TELEPHONE_RELEASED[] = { 0x3b, 0xa0, 0x07 };
+
+  if(p[0] == 0x50 && p[1] == 0x04) {
+    if(p[2] == 0x68) { /* To Radio */
+      if(memcmp(BTN_NEXT_PRESSED, &p[3], 3) == 0) {
+      } else if(memcmp(BTN_NEXT_RELEASED, &p[3], 3) == 0) {
+      } else if(memcmp(BTN_PREV_PRESSED, &p[3], 3) == 0) {
+      } else if(memcmp(BTN_PREV_RELEASED, &p[3], 3) == 0) {
+      } else if(memcmp(BTN_VOLUME_UP, &p[3], 3) == 0) {
+	    if(ssm.VolumeUpTick > 0)
+	      return;
+	    ssm.VolumeUpTick = 2;
+	    if(ssm.mode == SSM_SETUP_COOLANT_TEMPERATURE) {
+	      if(ssm.targetTemperature < MAXIMUM_COOLANT_TEMPERATURE) {
+	        ssm.targetTemperature++;
+	        ssm.refresh = true;
+	      }
+	    }
+      } else if(memcmp(BTN_VOLUME_DOWN, &p[3], 3) == 0) {
+	    if(ssm.VolumeDownTick > 0)
+	      return;
+	    ssm.VolumeDownTick = 2;
+	    if(ssm.mode == SSM_SETUP_COOLANT_TEMPERATURE) {
+	      if(ssm.targetTemperature > MININUM_COOLANT_TEMPERATURE) {
+	        ssm.targetTemperature--;
+	        ssm.refresh = true;
+	      }
+	    }
+      }  	
+    } else if(p[2] == 0xc8) { /* To Telephone */
+      if(memcmp(BTN_RT_TELEPHONE_ON, &p[3], 3) == 0) {
+      } else if(memcmp(BTN_RT_TELEPHONE_OFF, &p[3], 3) == 0) {
+      } else if(memcmp(BTN_TELEPHONE_PRESSED, &p[3], 3) == 0) {
+      } else if(memcmp(BTN_TELEPHONE_KEEP_PRESSED, &p[3], 3) == 0) {
+      } else if(memcmp(BTN_TELEPHONE_RELEASED, &p[3], 3) == 0) {
+#if 0
+	    uint8_t d3[] = { 0x23, 0x62, 0x30, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30 };
+	    IBus_Send2(0x68, 0x80, d3, 25); /* Display "12345678901234567890" on IKE - Text Screen (20) */
+#endif
+#if 0
+	    uint8_t d[] = { 0x21, 0x40, 0x00, 0x09, 0x05, 0x05, 0x4D, 0x50, 0x33 };
+	    IBus_Send2(0x68, 0xe7, d, 9); /* Display "MP3" on ANZV OBC TextBar - Radio Screen */
+#endif
+#if 0
+	    uint8_t d2[] = { 0x23, 0x01, 0x20, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30 };
+	    IBus_Send2(0x80, 0xe7, d2, 23); /* Display "12345678901234567890" on ANZV OBC TextBar - BC Screen (20) */    
+#endif
+	    if(ssm.mode == SSM_HEATER_FORCE_ON) {
+	      ssm.heaterForceOn = false;
+	      Ssm_HeaterOff(0); /* To turn again by IKE */      
+	    }
+
+	    if(++ssm.mode == SSM_UNKNOWN)
+	      ssm.mode = SSM_DISABLED;
+	    else
+	      ssm.refresh = true;
+
+	    if(ssm.mode == SSM_DISABLED) {
+	      IBus_RedrawRadioScreen("");
+	    } else if(ssm.mode == SSM_HEATER_FORCE_ON) {
+	      ssm.heaterForceOn = true;
+	      Ssm_HeaterOn("Heater Force On");
+	    }
+
+	    Ssm_Update();
+      } 
+  	}
   }
 }
 
@@ -951,8 +955,6 @@ int main(void)
 #else  
   Usart2_Init(115200);
   Usart2_Puts("\r\nOpenBTD v0.1");
-  Usart2_Puts("\r\nAuthor : Steve Chang");
-  Usart2_Puts("\r\n27th Auguest 2017");
 #endif
   Usart3_Init(9600);
 
@@ -1068,10 +1070,13 @@ void TIM4_IRQHandler(void)
     if(tim4Tick % 1000 == 0)
       tim4Tick_1000ms++;
 
-#ifdef USART2_LIN_BUS
+#ifdef USART1_IBUS
+    usart1_idle_tick++;
+#endif
+#ifdef USART2_IBUS
     usart2_idle_tick++;
 #endif
-#ifdef USART3_LIN_BUS
+#ifdef USART3_IBUS
     usart3_idle_tick++;
 #endif
     TIM_ClearITPendingBit(TIM4, /*TIM_IT_Update*/ TIM_FLAG_Update);

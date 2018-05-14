@@ -1,4 +1,4 @@
-update=2018年03月02日 (週五) 04時21分44秒
+update=2018年04月18日 (週三) 14時30分29秒
 version=1
 last_client=kicad
 [cvpcb]
